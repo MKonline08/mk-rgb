@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker"><PropertyGroup><OutputType>Exe</OutputType><AssemblyName>MkRgb.Service</AssemblyName></PropertyGroup><ItemGroup><ProjectReference Include="../MkRgb.Hardware/MkRgb.Hardware.csproj"/><PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.13"/></ItemGroup></Project>

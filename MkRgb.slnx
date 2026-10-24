@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MkRgb.Core/MkRgb.Core.csproj" />
+    <Project Path="src/MkRgb.Desktop/MkRgb.Desktop.csproj" />
+    <Project Path="src/MkRgb.Hardware/MkRgb.Hardware.csproj" />
+    <Project Path="src/MkRgb.Service/MkRgb.Service.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MkRgb.Tests/MkRgb.Tests.csproj" />
+  </Folder>
+</Solution>

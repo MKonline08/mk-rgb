@@ -1,0 +1,17 @@
+{
+  "Name": "Afterglow",
+  "Layers": [
+    {
+      "Name": "Base",
+      "Brightness": 0.65,
+      "Color2": "#3A5276",
+      "Speed": 0.15,
+      "Kind": "Gradient",
+      "Color": "#C6A8FF"
+    }
+  ],
+  "Fans": [],
+  "Id": "afterglow",
+  "Version": 1,
+  "Layout": []
+}

@@ -1,0 +1,17 @@
+{
+  "Name": "Ripple",
+  "Layers": [
+    {
+      "Name": "Base",
+      "Brightness": 0.65,
+      "Color2": "#435275",
+      "Speed": 0.15,
+      "Kind": "Ripple",
+      "Color": "#68CDF0"
+    }
+  ],
+  "Fans": [],
+  "Id": "ripple",
+  "Version": 1,
+  "Layout": []
+}

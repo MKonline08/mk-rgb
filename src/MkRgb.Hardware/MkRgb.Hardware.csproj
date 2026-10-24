@@ -1,0 +1,1 @@
+<Project Sdk="Microsoft.NET.Sdk"><ItemGroup><ProjectReference Include="../MkRgb.Core/MkRgb.Core.csproj"/><PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6"/></ItemGroup></Project>

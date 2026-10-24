@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>WinExe</OutputType><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><AssemblyName>MK RGB</AssemblyName><ApplicationIcon>Assets/mk-rgb.ico</ApplicationIcon><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
+ <ItemGroup><ProjectReference Include="../MkRgb.Hardware/MkRgb.Hardware.csproj"/><PackageReference Include="SkiaSharp.Views.WPF" Version="4.153.1"/><PackageReference Include="NAudio" Version="2.2.1"/><FrameworkReference Include="Microsoft.AspNetCore.App"/></ItemGroup>
+ <ItemGroup><Using Remove="System.Windows.Forms"/><Using Remove="System.Drawing"/></ItemGroup>
+ <ItemGroup><Content Include="../../catalog/**" Link="catalog/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest"/></ItemGroup>
+<ItemGroup><Resource Include="Assets/mk-rgb.ico" /></ItemGroup></Project>

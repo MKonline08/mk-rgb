@@ -1,0 +1,17 @@
+{
+  "Name": "Spectrum",
+  "Layers": [
+    {
+      "Name": "Base",
+      "Brightness": 0.65,
+      "Color2": "#6877DB",
+      "Speed": 0.15,
+      "Kind": "Rainbow",
+      "Color": "#78E8C2"
+    }
+  ],
+  "Fans": [],
+  "Id": "spectrum",
+  "Version": 1,
+  "Layout": []
+}

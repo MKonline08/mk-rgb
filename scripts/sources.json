@@ -1,0 +1,37 @@
+[
+  {
+    "Sha256": "8b919ad446de7f0415e2271a1881f94cd4f14e384a3c59acfcb3f540125f0107",
+    "Url": "https://codeberg.org/OpenRGB/OpenRGB/archive/release_1.1.tar.gz",
+    "File": "OpenRGB-1.1-source.tar.gz"
+  },
+  {
+    "Sha256": "56001b905601bb9023d399f3ba780d7fa940f3e4861e496a7c490331f49e0b80",
+    "Url": "https://download.qt.io/archive/qt/6.8/6.8.3/submodules/qtbase-everywhere-src-6.8.3.tar.xz",
+    "File": "qtbase-everywhere-src-6.8.3.tar.xz"
+  },
+  {
+    "Sha256": "54b9c84bff34b423dd8c472862ce1009753ff505e418b4ef33907416da16b82e",
+    "Url": "https://download.qt.io/archive/qt/6.8/6.8.3/submodules/qt5compat-everywhere-src-6.8.3.tar.xz",
+    "File": "qt5compat-everywhere-src-6.8.3.tar.xz"
+  },
+  {
+    "Sha256": "ffaa41d741a8a3bee244ac8e54a72ea05bf2879663c098c82fc5757853441575",
+    "Url": "https://github.com/libusb/libusb/releases/download/v1.0.27/libusb-1.0.27.tar.bz2",
+    "File": "libusb-1.0.27.tar.bz2"
+  },
+  {
+    "Sha256": "070215b40feca5a8f5b27e2537ab4ea820347fecea8ca4860c8dd028a60a6413",
+    "Url": "https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/archive/refs/tags/v0.9.6.tar.gz",
+    "File": "LibreHardwareMonitor-0.9.6.tar.gz"
+  },
+  {
+    "Sha256": "f3e51e415fb00b8a84dbdb4e89c1c85100a9608e0c581a3fd00889dd19b4a7ce",
+    "Url": "https://github.com/namazso/PawnIO/archive/9d52965895588b0ffa3703b72eec75ba19f4ccc0.tar.gz",
+    "File": "PawnIO-source.tar.gz"
+  },
+  {
+    "Sha256": "c3c303502268cfdc7616983ca8eba0c348d0ba91993cee4a8a6c283604c24822",
+    "Url": "https://github.com/namazso/PawnIO.Modules/archive/24425a5299e84410751da882c121f322fb030b82.tar.gz",
+    "File": "PawnIO-Modules-source.tar.gz"
+  }
+]

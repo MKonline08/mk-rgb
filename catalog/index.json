@@ -1,0 +1,92 @@
+[
+  {
+    "Name": "Tideline",
+    "Description": "A slow mint and indigo wave across your entire layout.",
+    "Kind": "Profile",
+    "Version": "1.0.0",
+    "Tags": [
+      "wave",
+      "original"
+    ],
+    "Sha256": "6544821CC76A5B9A85788B2F27AF955954EEFAE1E55AB3AE6DB69A278FBC2330",
+    "Id": "tideline",
+    "File": "profiles/tideline.json",
+    "PreviewColors": [
+      "#78E8C2",
+      "#6877DB"
+    ],
+    "Compatibility": "All mapped RGB devices; imports as virtual preview devices. No cooling commands."
+  },
+  {
+    "Name": "Ember",
+    "Description": "Warm amber breathing with a restrained glow.",
+    "Kind": "Profile",
+    "Version": "1.0.0",
+    "Tags": [
+      "breathing",
+      "original"
+    ],
+    "Sha256": "106E8161CE999BF5A0C453CAEB76BFF3623B3C51B0D1F5B9389C9B61F92D6ED0",
+    "Id": "ember",
+    "File": "profiles/ember.json",
+    "PreviewColors": [
+      "#FF9B54",
+      "#5E2533"
+    ],
+    "Compatibility": "All mapped RGB devices; imports as virtual preview devices. No cooling commands."
+  },
+  {
+    "Name": "Spectrum",
+    "Description": "A continuous spatial spectrum with gentle motion.",
+    "Kind": "Profile",
+    "Version": "1.0.0",
+    "Tags": [
+      "rainbow",
+      "original"
+    ],
+    "Sha256": "23335605911FE7CDB53F3662EDF960BDEC8F00F47B79C6F3033CC55C731AF1EE",
+    "Id": "spectrum",
+    "File": "profiles/spectrum.json",
+    "PreviewColors": [
+      "#78E8C2",
+      "#6877DB"
+    ],
+    "Compatibility": "All mapped RGB devices; imports as virtual preview devices. No cooling commands."
+  },
+  {
+    "Name": "Afterglow",
+    "Description": "Soft violet gradients for an evening setup.",
+    "Kind": "Profile",
+    "Version": "1.0.0",
+    "Tags": [
+      "gradient",
+      "original"
+    ],
+    "Sha256": "0E8CF3948DB117E8C60A3D7A62AB8ECD102B92592E922C51C863E2AE2E6ADE29",
+    "Id": "afterglow",
+    "File": "profiles/afterglow.json",
+    "PreviewColors": [
+      "#C6A8FF",
+      "#3A5276"
+    ],
+    "Compatibility": "All mapped RGB devices; imports as virtual preview devices. No cooling commands."
+  },
+  {
+    "Name": "Ripple",
+    "Description": "Concentric motion that flows across your devices.",
+    "Kind": "Profile",
+    "Version": "1.0.0",
+    "Tags": [
+      "ripple",
+      "original"
+    ],
+    "Sha256": "28595FCCBCED73511FEAC57B726C5AC5F5FFEDD2E9593110B4E23F0788E39202",
+    "Id": "ripple",
+    "File": "profiles/ripple.json",
+    "PreviewColors": [
+      "#68CDF0",
+      "#435275"
+    ],
+    "Compatibility": "All mapped RGB devices; imports as virtual preview devices. No cooling commands."
+  }
+]

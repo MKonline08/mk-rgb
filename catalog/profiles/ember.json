@@ -1,0 +1,17 @@
+{
+  "Name": "Ember",
+  "Layers": [
+    {
+      "Name": "Base",
+      "Brightness": 0.65,
+      "Color2": "#5E2533",
+      "Speed": 0.15,
+      "Kind": "Breathing",
+      "Color": "#FF9B54"
+    }
+  ],
+  "Fans": [],
+  "Id": "ember",
+  "Version": 1,
+  "Layout": []
+}
