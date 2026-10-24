@@ -2,6 +2,10 @@
 
 An open-source Windows studio for lighting, cooling, and hardware monitoring.
 
+![MK RGB overview with a virtual lighting strip and real available telemetry](docs/screenshots/overview.png)
+
+[Studio screenshot](docs/screenshots/studio.png) · [Cooling screenshot](docs/screenshots/cooling.png)
+
 **Development preview. The complete release acceptance plan is not finished.** Hardware support is capability-based. See [validation](docs/validation.md) for the checks actually performed and remaining work, and [compatibility](docs/compatibility.md) before enabling control.
 
 ## Features

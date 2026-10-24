@@ -53,7 +53,7 @@ public sealed class Pages(MainViewModel vm, MainWindow window)
     }
     Button Button(string title, Func<Task> action, bool primary = false)
     {
-        var b = new Button { Content = title };
+        var b = new Button { Content = title, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
         if (primary)
             b.Style = (Style)System.Windows.Application.Current.FindResource("Primary");
         b.Click += async (_, _) => { b.IsEnabled = false; await vm.Run(action); b.IsEnabled = true; };
@@ -262,8 +262,8 @@ public sealed class Pages(MainViewModel vm, MainWindow window)
             var source = p.Sources[0];
             var stopTest = new CheckBox { Content = "Also validate stop and restart (fans only)", IsEnabled = !channel.Pump && channel.Min == 0 };
             var selectedRpm = new ComboBox { ItemsSource = vm.Sensors.Where(s => s.Sample.Kind == SensorKind.Fan).ToList(), DisplayMemberPath = "Name", SelectedValuePath = "Id", Width = 250 };
-            var curve = new PlotCanvas { Points = () => source.Points.Select(p => (p.Temperature, p.Duty)).ToList(), Edit = (i, x, y) => { if (i == source.Points.Count - 1) y = 100; source.Points[i] = new(Math.Min(85, x), y); } };
-            var points = new DataGrid { ItemsSource = new ObservableCollection<EditablePoint>(source.Points.Select(p => new EditablePoint(p))), Height = 160, IsReadOnly = false };
+            DataGrid? points = null; var curve = new PlotCanvas { BeginEdit = vm.Record, Points = () => source.Points.Select(p => (p.Temperature, p.Duty)).ToList(), Edit = (i, x, y) => { if (i == source.Points.Count - 1) y = 100; var low = i == 0 ? 0 : source.Points[i - 1].Temperature + 1; var high = i == source.Points.Count - 1 ? 85 : source.Points[i + 1].Temperature - 1; if (low > high) return; source.Points[i] = new(Math.Clamp(x, low, high), y); if (points != null) points.ItemsSource = new ObservableCollection<EditablePoint>(source.Points.Select(p => new EditablePoint(p))); } };
+            points = new DataGrid { ItemsSource = new ObservableCollection<EditablePoint>(source.Points.Select(p => new EditablePoint(p))), Height = 160, IsReadOnly = false };
             EditColumn(points, "TEMPERATURE °C", "Temperature");
             EditColumn(points, "DUTY %", "Duty");
             var presets = new ComboBox { ItemsSource = new[] { "Quiet", "Balanced", "Gaming", "Maximum Cooling" }, SelectedIndex = 1, Width = 190 };
@@ -288,7 +288,7 @@ public sealed class Pages(MainViewModel vm, MainWindow window)
             selector.SelectedIndex = 0;
         if (vm.Fans.Count == 0)
             body.Content = Card(Stack(Text("No controllable fan channels available", 19), Text("The hardware service must be installed and able to access a supported controller. Sensor readings alone do not imply fan-write support.", 13, "#959FA7"), Action("Open service setup", () => window.Go("Settings"))));
-        return Stack(Text("Cooling control", 28), Text("Tune the relationship between temperature, airflow, and noise.", 13, "#959FA7"), selector, body);
+        return Stack(Text("Cooling control", 28), Text("Tune the relationship between temperature, airflow, and noise.", 13, "#959FA7"), Row(selector, Action("Undo", vm.Undo), Action("Redo", vm.Redo)), body);
     }
     UIElement Monitoring()
     {

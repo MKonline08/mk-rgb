@@ -118,11 +118,12 @@ public sealed class PlotCanvas : SKElement
         get; set;
     }
     int drag = -1;
+    public Action? BeginEdit { get; set; }
     public PlotCanvas()
     {
         Height = 230;
         PaintSurface += Paint;
-        MouseLeftButtonDown += (_, e) => { if (Edit is null) return; var p = e.GetPosition(this); var pts = Points(); drag = Enumerable.Range(0, pts.Count).OrderBy(i => Math.Abs(pts[i].X / MaxX * (ActualWidth - 65) + 45 - p.X)).FirstOrDefault(-1); CaptureMouse(); };
+        MouseLeftButtonDown += (_, e) => { if (Edit is null) return; var p = e.GetPosition(this); var pts = Points(); drag = Enumerable.Range(0, pts.Count).OrderBy(i => Math.Abs(pts[i].X / MaxX * (ActualWidth - 65) + 45 - p.X)).FirstOrDefault(-1); if (drag >= 0) BeginEdit?.Invoke(); CaptureMouse(); };
         MouseMove += (_, e) => { if (drag < 0 || Edit is null) return; var p = e.GetPosition(this); Edit(drag, Math.Round(Math.Clamp((p.X - 45) / (ActualWidth - 65) * MaxX, 0, MaxX)), Math.Round(Math.Clamp((ActualHeight - 35 - p.Y) / (ActualHeight - 65) * MaxY, 0, MaxY))); InvalidateVisual(); };
         MouseLeftButtonUp += (_, _) => { drag = -1; ReleaseMouseCapture(); };
     }

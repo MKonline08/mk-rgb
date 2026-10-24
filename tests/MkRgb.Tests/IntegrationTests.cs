@@ -10,6 +10,28 @@ namespace MkRgb.Tests;
 public class IntegrationTests
 {
     [Fact]
+    public void BundledCatalogChecksumsMatchPortableProfiles()
+    {
+        var directory = Path.Combine(AppContext.BaseDirectory, "catalog");
+        var items = Json.Read<List<CatalogItem>>(File.ReadAllText(Path.Combine(directory, "index.json")));
+        Assert.NotEmpty(items);
+        foreach (var item in items)
+        {
+            var bytes = File.ReadAllBytes(Path.Combine(directory, item.File));
+            Assert.Equal(item.Sha256.ToUpperInvariant(), Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)));
+            SettingsStore.ValidateProfile(SettingsStore.Import(System.Text.Encoding.UTF8.GetString(bytes)));
+        }
+    }
+    [Fact]
+    public void ScalarSignalsRequireTypedColorConversion()
+    {
+        var layer = new EffectLayer { Kind = EffectKind.Graph, OutputNode = "output", Nodes = [new() { Id = "signal", Type = "Sensor", Source = "cpu", Value = 100 }, new() { Id = "output", Type = "Colorize", Inputs = ["signal"], Color = "#FF0000" }] };
+        Effects.ValidateGraph(layer);
+        Assert.Equal(new Rgb(127, 0, 0), Effects.Evaluate(layer, 0, 0, new(0, new Dictionary<string, double> { ["cpu"] = 50 }, [], Rgb.Black, new Dictionary<string, double>())));
+        layer.Nodes[1].Type = "Transform";
+        Assert.Throws<InvalidDataException>(() => Effects.ValidateGraph(layer));
+    }
+    [Fact]
     public async Task LocalApiRequiresTokenAndDoesNotExposeHardwareWrites()
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
