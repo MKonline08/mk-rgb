@@ -62,7 +62,7 @@ $refs = ($components | ForEach-Object { '<ComponentRef Id="'+$_+'" />' }) -join 
 $source = @"
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
   <Package Name="MK RGB" Manufacturer="MKonline08" Version="$Version" UpgradeCode="8CCF329A-9A64-443D-BCC9-A12A8E9B9D21" Scope="perMachine" Compressed="yes">
-    <MajorUpgrade DowngradeErrorMessage="A newer MK RGB version is already installed." Schedule="afterInstallInitialize" />
+    <MajorUpgrade DowngradeErrorMessage="A newer MK RGB version is already installed." Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
     <StandardDirectory Id="ProgramFiles64Folder"><Directory Id="INSTALLFOLDER" Name="MK RGB">$tree</Directory></StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder" />
