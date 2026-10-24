@@ -142,15 +142,15 @@ public sealed class TelemetryStore : IDisposable
     public List<(DateTimeOffset At, double Value)> Read(string id, DateTimeOffset since, int limit = 10000)
     {
         using var cmd = db.CreateCommand();
-        cmd.CommandText = "SELECT at,value FROM samples WHERE sensor=$id AND at>=$since ORDER BY at DESC LIMIT $limit";
+        cmd.CommandText = "SELECT MIN(at),AVG(value) FROM samples WHERE sensor=$id AND at>=$since GROUP BY CAST((at-$since)/$bucket AS INTEGER) ORDER BY MIN(at) LIMIT $limit";
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$since", since.ToUnixTimeMilliseconds());
         cmd.Parameters.AddWithValue("$limit", limit);
+        cmd.Parameters.AddWithValue("$bucket", Math.Max(1L, (long)Math.Ceiling((DateTimeOffset.UtcNow - since).TotalMilliseconds / Math.Max(1, limit))));
         using var r = cmd.ExecuteReader();
         var rows = new List<(DateTimeOffset, double)>();
         while (r.Read())
             rows.Add((DateTimeOffset.FromUnixTimeMilliseconds(r.GetInt64(0)), r.GetDouble(1)));
-        rows.Reverse();
         return rows;
     }
     public void Prune(int days)

@@ -10,6 +10,22 @@ namespace MkRgb.Tests;
 public class IntegrationTests
 {
     [Fact]
+    public void HistoricalChartCoversEntireRequestedRangeWhenDownsampled()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mkrgb-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            using var store = new TelemetryStore(Path.Combine(root, "history.db"));
+            var now = DateTimeOffset.UtcNow;
+            store.Append(new[] { 23, 19, 15, 11, 7, 3 }.Select(hours => new SensorSample("cpu", "CPU", SensorKind.Temperature, 40 + hours, "°C", now.AddHours(-hours), "cpu")));
+            var data = store.Read("cpu", now.AddHours(-24), 3);
+            Assert.Equal(3, data.Count);
+            Assert.True(data[0].At < now.AddHours(-20));
+            Assert.True(data[^1].At > now.AddHours(-8));
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+    [Fact]
     public void BundledCatalogChecksumsMatchPortableProfiles()
     {
         var directory = Path.Combine(AppContext.BaseDirectory, "catalog");
