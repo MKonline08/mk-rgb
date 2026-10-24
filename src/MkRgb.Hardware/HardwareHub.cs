@@ -35,7 +35,7 @@ public sealed class HardwareHub(string directory) : ISensorProvider, IFanControl
                         Id = prefix + f.Id,
                         DeviceId = prefix + f.DeviceId,
                         RpmSensorId = f.RpmSensorId is null ? null : prefix + f.RpmSensorId,
-                        Writable = controller != null && f.Writable
+                        Writable = controller != null && extensions.FanControllers.Contains(controller) && f.Writable
                     });
                 }
                 snapshot.Warnings.AddRange(data.Warnings);

@@ -170,7 +170,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             throw new InvalidDataException("Duplicate fan channels.");
         foreach (var p in incoming.Where(p => p.Enabled))
         {
-            if (!calibrated.TryGetValue(p.ChannelId, out var evidence) || !snapshot.Fans.Any(f => f.Id == p.ChannelId))
+            if (!calibrated.TryGetValue(p.ChannelId, out var evidence) || !snapshot.Fans.Any(f => f.Id == p.ChannelId && f.Writable && f.CanRestore))
                 throw new InvalidOperationException("Commission this channel before applying control.");
             if (!double.IsFinite(evidence.Minimum) || evidence.Minimum is < 1 or > 100 || !double.IsFinite(evidence.StartDuty) || evidence.StartDuty < evidence.Minimum || evidence.StartDuty > 100)
                 throw new InvalidDataException("Invalid saved channel calibration.");
@@ -194,9 +194,9 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
     {
         if (calibrationChannel != null)
             throw new InvalidOperationException("Wait for commissioning to finish before restoring control.");
+        SettingsStore.AtomicWrite(PoliciesPath, "[]");
         policies = [];
         sensors.RestoreAll();
-        SettingsStore.AtomicWrite(PoliciesPath, "[]");
         return true;
     }
     bool StartRgb()
@@ -227,7 +227,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             if (calibrationChannel != null)
                 throw new InvalidOperationException("Another channel is being commissioned.");
             var channel = snapshot.Fans.FirstOrDefault(f => f.Id == request.ChannelId) ?? throw new InvalidOperationException("Channel not found.");
-            if (!channel.CanRestore)
+            if (!channel.CanRestore || !channel.Writable)
                 throw new InvalidOperationException("No default-control recovery is available for this channel.");
             if (channel.Pump && !request.IsPump)
                 throw new InvalidOperationException("Pump channels must be commissioned as pumps.");
@@ -331,12 +331,13 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             await gate.WaitAsync(token);
             try
             {
+                sensors.Restore(request.ChannelId);
                 calibrated[request.ChannelId] = result;
                 SettingsStore.AtomicWrite(PoliciesPath + ".calibration", Json.Write(calibrated));
             }
             finally { gate.Release(); }
             return result;
         }
-        finally { await gate.WaitAsync(CancellationToken.None); try { sensors.Restore(request.ChannelId); calibrationChannel = null; } finally { gate.Release(); } }
+        finally { await gate.WaitAsync(CancellationToken.None); try { sensors.Restore(request.ChannelId); } finally { calibrationChannel = null; gate.Release(); } }
     }
 }
