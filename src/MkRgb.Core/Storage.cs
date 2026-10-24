@@ -170,7 +170,11 @@ public sealed class TelemetryStore : IDisposable
         while (r.Read())
             writer.WriteLine($"\"{r.GetString(0).Replace("\"", "\"\"")}\",{DateTimeOffset.FromUnixTimeMilliseconds(r.GetInt64(1)):O},{r.GetDouble(2).ToString(CultureInfo.InvariantCulture)}");
     }
-    public void Dispose() => db.Dispose();
+    public void Dispose()
+    {
+        SqliteConnection.ClearPool(db);
+        db.Dispose();
+    }
 }
 public record RpcRequest(string Method, string Payload = "", int Version = 1);
 public record RpcResponse(bool Success, string Payload, string? Error = null, int Version = 1);
