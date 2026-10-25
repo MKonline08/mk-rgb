@@ -19,7 +19,7 @@ An open-source Windows studio for lighting, cooling, and hardware monitoring.
 
 ## Run
 
-Windows 11 x64 is the target. The MSI installs the self-contained app and hardware service. Start **MK RGB** from the Start menu. Its first scan does not enable lighting or fan writes. Use **Connect RGB** to start the bundled backend, then explicitly enable lighting output. Commission each fan mapping in Cooling before enabling a policy.
+Windows 11 x64 is the target. Run **MK-RGB-0.1.0-Setup.exe** to install the self-contained app and hardware service. The installed program is **MK RGB.exe**. An MSI is also provided for managed deployments. Start **MK RGB** from the Start menu. Its first scan does not enable lighting or fan writes. Use **Connect RGB** to start the bundled backend, then explicitly enable lighting output. Commission each fan mapping in Cooling before enabling a policy.
 
 The portable ZIP runs monitoring and editing without installation. Privileged motherboard access and persistent cooling need the installed service. Unsupported or blocked sensors are shown as unavailable. MK RGB does not change Windows driver-security settings.
 
@@ -36,7 +36,7 @@ dotnet test tests/MkRgb.Tests/MkRgb.Tests.csproj -c Release
 dotnet run --project src/MkRgb.Desktop
 ```
 
-Create the self-contained MSI and ZIP with WiX 6.0.2:
+Create the self-contained EXE installer, MSI, and portable ZIP with WiX 6.0.2:
 
 ```powershell
 dotnet tool install wix --version 6.0.2 --tool-path .tools

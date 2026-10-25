@@ -74,6 +74,7 @@ $wxs = Join-Path $repo 'artifacts\MkRgb.wxs'
 [IO.File]::WriteAllText($wxs,$source)
 Checked $Wix @('build','-ext','WixToolset.Util.wixext','-arch','x64',$wxs,'-out',"$out\MK-RGB-$Version-win-x64.msi",'-pdbtype','none')
 Compress-Archive -Path "$stage\*" -DestinationPath "$out\MK-RGB-$Version-win-x64-portable.zip" -Force
+& (Join-Path $PSScriptRoot 'bundle.ps1') -Msi "$out\MK-RGB-$Version-win-x64.msi" -Wix $Wix -Version $Version
 foreach ($source in (Get-Content (Join-Path $PSScriptRoot 'sources.json') -Raw | ConvertFrom-Json)) {
     $archive = Join-Path $repo ('vendor\' + $source.File)
     if (-not (Test-Path -LiteralPath $archive)) { Invoke-WebRequest $source.Url -OutFile $archive }

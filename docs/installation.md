@@ -1,8 +1,8 @@
 # Installation and recovery
 
-Download the Windows x64 MSI from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
+Download **MK-RGB-0.1.0-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
 
-The MSI installs the .NET runtime with MK RGB, the `MkRgbHardware` Windows service, and a pinned OpenRGB backend under `Program Files/MK RGB`. It creates a Start-menu shortcut. Administrative installation is required for the service. The installing user, administrators, and SYSTEM can access the named pipe. Other Windows users cannot control that installation through the app's pipe.
+The EXE installer contains the MSI and installs the .NET runtime with MK RGB, the `MkRgbHardware` Windows service, and a pinned OpenRGB backend under `Program Files/MK RGB`. It creates a Start-menu shortcut. Administrative installation is required for the service. The installing user, administrators, and SYSTEM can access the named pipe. Other Windows users cannot control that installation through the app's pipe.
 
 1. Launch MK RGB. Monitoring starts without enabling lighting or fan writes.
 2. Open Lighting and connect RGB. Close competing RGB/fan controllers before claiming devices. Assign imported virtual placements to detected devices through **Hardware assignment**.

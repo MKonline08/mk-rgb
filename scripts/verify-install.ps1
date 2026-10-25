@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Msi)
+param([Parameter(Mandatory)][string]$Msi, [string]$Exe)
 $ErrorActionPreference = 'Stop'
 if ($env:GITHUB_ACTIONS -ne 'true') { throw 'This destructive install/recovery test is restricted to disposable GitHub-hosted CI runners.' }
 function Install([string[]]$Arguments) {
@@ -46,3 +46,19 @@ try {
 if(Get-Service MkRgbHardware -ErrorAction SilentlyContinue) { throw 'Service remained after uninstall' }
 if(Test-Path (Join-Path $env:ProgramFiles 'MK RGB/MK RGB.exe')) { throw 'Application remained after uninstall' }
 Write-Output 'Install, pipe snapshot, repair, crash recovery, and uninstall passed. No hardware control commands were issued.'
+if ($Exe) {
+    $bundle = (Resolve-Path -LiteralPath $Exe).Path
+    function RunBundle([string]$Action) {
+        $process = Start-Process -FilePath $bundle -ArgumentList @($Action, '/quiet', '/norestart', '/log', ('"'+$logs+'\bundle-'+$Action.TrimStart('/')+'.log"')) -WindowStyle Hidden -Wait -PassThru
+        if ($process.ExitCode -notin 0,3010) { throw "EXE installer $Action failed: $($process.ExitCode)" }
+    }
+    try {
+        RunBundle '/install'
+        (Get-Service MkRgbHardware).WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
+        Snapshot
+        RunBundle '/repair'
+        Snapshot
+    } finally { RunBundle '/uninstall' }
+    if (Get-Service MkRgbHardware -ErrorAction SilentlyContinue) { throw 'Service remained after EXE uninstall' }
+    Write-Output 'EXE install, service snapshot, repair, and uninstall passed.'
+}
