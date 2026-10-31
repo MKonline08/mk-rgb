@@ -61,7 +61,7 @@ public record Rgb(byte R, byte G, byte B)
         return new((byte)((r + m) * 255), (byte)((g + m) * 255), (byte)((b + m) * 255));
     }
 }
-public record Zone(string Id, string Name, int Start, int Count, bool Resizable = false);
+public record Zone(string Id, string Name, int Start, int Count, bool Resizable = false, int Minimum = 0, int Maximum = 10000);
 public record Device(string Id, string Name, string Vendor, Capability Capabilities, int LedCount, List<Zone> Zones, string Status = "Available", bool Verified = false);
 public record SensorSample(string Id, string Name, SensorKind Kind, double? Value, string Unit, DateTimeOffset At, string DeviceId)
 {
@@ -180,6 +180,11 @@ public record AlertRule
 }
 public record Settings
 {
+    public bool StartWithWindows { get; set; }
+    public bool StartInTray { get; set; }
+    public bool ConnectRgbOnLaunch { get; set; }
+    public bool EnableLightingOnLaunch { get; set; }
+    public bool CloseRgbAppsOnConnect { get; set; }
     public int Version { get; set; } = 1; public string ActiveProfileId { get; set; } = "";
     public List<Profile> Profiles { get; set; } = [new()]; public List<AutomationRule> Rules { get; set; } = [];
     public List<AlertRule> Alerts { get; set; } = []; public Dictionary<string, string> SensorNames { get; set; } = [];

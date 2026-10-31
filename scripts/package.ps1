@@ -1,12 +1,13 @@
 param(
     [string]$Dotnet = 'dotnet',
     [string]$Wix = 'wix',
-    [string]$Version = '0.1.0'
+    [string]$Version = '0.1.1'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $stage = Join-Path $repo 'artifacts\stage'
 $out = Join-Path $repo 'artifacts\release'
+if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw 'Version must use major.minor.patch format' }
 # Generated stage only: validate its resolved boundary before removing stale publish files.
 if (Test-Path -LiteralPath $stage) {
     $resolvedStage = (Resolve-Path -LiteralPath $stage).Path
@@ -17,8 +18,8 @@ if (Test-Path -LiteralPath $stage) {
 New-Item -ItemType Directory -Force $stage, $out | Out-Null
 function Checked { param([string]$Command,[string[]]$Arguments) & $Command @Arguments; if ($LASTEXITCODE -ne 0) { throw "$Command failed ($LASTEXITCODE)" } }
 Checked $Wix @('extension','add','--global','WixToolset.Util.wixext/6.0.2')
-Checked $Dotnet @('publish',"$repo\src\MkRgb.Desktop\MkRgb.Desktop.csproj",'-c','Release','-r','win-x64','--self-contained','true','-o',$stage,'-p:DebugType=None')
-Checked $Dotnet @('publish',"$repo\src\MkRgb.Service\MkRgb.Service.csproj",'-c','Release','-r','win-x64','--self-contained','true','-o',"$stage\service",'-p:DebugType=None')
+Checked $Dotnet @('publish',"$repo\src\MkRgb.Desktop\MkRgb.Desktop.csproj",'-c','Release','-r','win-x64','--self-contained','true','-o',$stage,'-p:DebugType=None',"-p:Version=$Version")
+Checked $Dotnet @('publish',"$repo\src\MkRgb.Service\MkRgb.Service.csproj",'-c','Release','-r','win-x64','--self-contained','true','-o',"$stage\service",'-p:DebugType=None',"-p:Version=$Version")
 $backend = Join-Path $repo 'vendor\OpenRGB-1.1.zip'
 New-Item -ItemType Directory -Force (Split-Path $backend) | Out-Null
 if (-not (Test-Path $backend)) { Invoke-WebRequest 'https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_Windows_64_8e16de2.zip' -OutFile $backend }

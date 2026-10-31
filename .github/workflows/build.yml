@@ -4,6 +4,9 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+concurrency:
+  group: build-${{ github.sha }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -23,7 +26,7 @@ jobs:
       - shell: pwsh
         run: ./scripts/package.ps1 -Wix "$PWD/.tools/wix.exe"
       - shell: pwsh
-        run: ./scripts/verify-install.ps1 -Msi ./artifacts/release/MK-RGB-0.1.0-win-x64.msi -Exe ./artifacts/release/MK-RGB-0.1.0-Setup.exe
+        run: ./scripts/verify-install.ps1 -Msi ./artifacts/release/MK-RGB-0.1.1-win-x64.msi -Exe ./artifacts/release/MK-RGB-0.1.1-Setup.exe
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -38,3 +41,19 @@ jobs:
         with:
           name: test-results
           path: '**/TestResults/*.trx'
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: MK-RGB-windows
+          path: artifacts/release
+      - name: Publish tested Windows installer and matching sources
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" artifacts/release/* --verify-tag --title "MK RGB $GITHUB_REF_NAME" --notes-file docs/release-notes.md --latest

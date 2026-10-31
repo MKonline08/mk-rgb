@@ -13,6 +13,7 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
     readonly SemaphoreSlim gate = new(1); readonly SemaphoreSlim writes = new(1);
     readonly Channel<(uint Id, byte[] Data)> replies = Channel.CreateBounded<(uint, byte[])>(8);
     readonly Dictionary<string, (uint Index, int Count)> mapping = []; readonly HashSet<string> direct = [];
+    readonly Dictionary<string, List<Zone>> zoneMapping = [];
     volatile bool dirty = true;
     public bool NeedsDiscovery => dirty;
     public async Task<List<Device>> DiscoverAsync(CancellationToken token)
@@ -45,6 +46,7 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
             }
             dirty = false;
             mapping.Clear();
+            zoneMapping.Clear();
             direct.Clear();
             var countData = await Request(0, 0, [], token);
             if (countData.Length != 4)
@@ -59,6 +61,7 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
                 if (mapping.ContainsKey(d.Id))
                     throw new InvalidDataException("Two RGB devices have the same identity; reconnect them separately.");
                 mapping[d.Id] = (i, d.LedCount);
+                zoneMapping[d.Id] = d.Zones;
                 devices.Add(d);
             }
             if (dirty)
@@ -80,8 +83,11 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
                 throw new IOException("RGB device list changed; refresh before writing.");
             if (colors.Length != d.Count)
                 throw new InvalidDataException("LED frame size does not match the device.");
-            if (direct.Add(id))
+            if (!direct.Contains(id))
+            {
                 await Send(d.Index, 1100, [], token);
+                direct.Add(id);
+            }
             using var m = new MemoryStream();
             using var w = new BinaryWriter(m);
             w.Write(6 + colors.Length * 4);
@@ -95,6 +101,7 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
             }
             await Send(d.Index, 1050, m.ToArray(), token);
         }
+        catch { dirty = true; client?.Dispose(); throw; }
         finally { gate.Release(); }
     }
     public async Task ResizeAsync(string id, int zone, int count, CancellationToken token)
@@ -104,8 +111,11 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
         {
             if (dirty || !mapping.TryGetValue(id, out var d))
                 throw new IOException("Rediscover devices first.");
-            if (count < 0 || count > 10000)
-                throw new InvalidDataException("Invalid LED count.");
+            var target = zoneMapping[id].FirstOrDefault(z => z.Id == zone.ToString());
+            if (target is null || !target.Resizable)
+                throw new InvalidDataException("This RGB zone cannot be resized.");
+            if (count < target.Minimum || count > Math.Min(10000, target.Maximum))
+                throw new InvalidDataException($"LED count must be between {target.Minimum} and {Math.Min(10000, target.Maximum)} for this zone.");
             await Send(d.Index, 1000, BitConverter.GetBytes(zone).Concat(BitConverter.GetBytes(count)).ToArray(), token);
             dirty = true;
         }
@@ -115,13 +125,21 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(5000);
-        await Send(device, command, data, timeout.Token);
-        while (true)
+        try
         {
-            var reply = await replies.Reader.ReadAsync(timeout.Token);
-            if (reply.Id == command)
-                return reply.Data;
+            await Send(device, command, data, timeout.Token);
+            while (true)
+            {
+                var replyTask = replies.Reader.ReadAsync(timeout.Token).AsTask();
+                if (await Task.WhenAny(replyTask, receiver!) != replyTask)
+                    throw new IOException("OpenRGB disconnected while responding. Retry Connect RGB.");
+                var reply = await replyTask;
+                if (reply.Id == command) return reply.Data;
+            }
         }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        { throw new TimeoutException("OpenRGB did not respond within five seconds. Retry Connect RGB."); }
+        finally { timeout.Cancel(); }
     }
     async Task Send(uint device, uint command, byte[] data, CancellationToken token)
     {
@@ -218,7 +236,7 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
             var n = checked((int)r.ReadUInt32());
             var matrix = r.ReadUInt16();
             Skip(matrix);
-            zones.Add(new(i.ToString(), zoneName, offset, n, min != max));
+            zones.Add(new(i.ToString(), zoneName, offset, n, min != max, checked((int)min), checked((int)max)));
             offset += n;
         }
         var leds = r.ReadUInt16();
@@ -229,6 +247,8 @@ public sealed class OpenRgb(int port = 6743) : IRgbController
         }
         var colors = r.ReadUInt16();
         Skip(colors * 4);
+        if (memory.Position != memory.Length || colors != leds || offset != leds)
+            throw new InvalidDataException("Inconsistent RGB zone, LED, or color data.");
         var identity = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(vendor + "|" + name + "|" + serial + "|" + location)))[..24];
         return new("openrgb:" + identity, name, vendor, Capability.Rgb, colors, zones, "Upstream supported; physical validation pending", false);
     }

@@ -22,7 +22,8 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
     readonly HardwareHub sensors = new(AppContext.BaseDirectory); readonly CoolingEngine cooling = new(); readonly SemaphoreSlim gate = new(1);
     readonly System.Collections.Concurrent.ConcurrentDictionary<int, Task> handlers = new(); int nextHandler;
     HardwareSnapshot snapshot = new([], [], [], [], DateTimeOffset.UtcNow);
-    List<FanPolicy> policies = []; Dictionary<string, CalibrationResult> calibrated = []; Process? rgb;
+    List<FanPolicy> policies = []; Dictionary<string, CalibrationResult> calibrated = [];
+    readonly OpenRgbBackend rgb = new(Path.Combine(AppContext.BaseDirectory, "OpenRGB", "OpenRGB.exe"), Path.Combine(Paths.MachineData, "OpenRGB"));
     string? calibrationChannel; string? lastFault;
     string PoliciesPath => Path.Combine(Paths.MachineData, "cooling.json");
     protected override async Task ExecuteAsync(CancellationToken token)
@@ -88,8 +89,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
                 sensors.RestoreAll();
             }
             catch (Exception e) { log.LogError(e, "Default fan control could not be restored"); }
-            if (rgb is { HasExited: false })
-                rgb.Kill(true);
+            await rgb.DisposeAsync();
             sensors.Dispose();
         }
     }
@@ -126,7 +126,12 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             if (request.Version != 1)
                 throw new InvalidDataException("Unsupported API version.");
             object result;
-            if (request.Method == "calibrate")
+            if (request.Method == "startRgb")
+            {
+                await rgb.StartAsync(token);
+                result = true;
+            }
+            else if (request.Method == "calibrate")
                 result = await Calibrate(Json.Read<CalibrationRequest>(request.Payload), token);
             else
             {
@@ -138,7 +143,6 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
                         "snapshot" => snapshot,
                         "apply" => Apply(Json.Read<List<FanPolicy>>(request.Payload)),
                         "restore" => Restore(),
-                        "startRgb" => StartRgb(),
                         "calibrations" => calibrated,
                         _ => throw new InvalidDataException("Unknown service operation.")
                     };
@@ -197,24 +201,6 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
         SettingsStore.AtomicWrite(PoliciesPath, "[]");
         policies = [];
         sensors.RestoreAll();
-        return true;
-    }
-    bool StartRgb()
-    {
-        if (rgb is { HasExited: false })
-            return true;
-        var conflicts = Sensors.Conflicts();
-        if (conflicts.Count > 0)
-            throw new InvalidOperationException("Close competing hardware controllers first: " + string.Join(", ", conflicts));
-        if (Process.GetProcessesByName("OpenRGB").Any())
-            throw new InvalidOperationException("An existing OpenRGB process is running. Close it before using the bundled controller.");
-        var exe = Path.Combine(AppContext.BaseDirectory, "OpenRGB", "OpenRGB.exe");
-        if (!File.Exists(exe))
-            throw new FileNotFoundException("Bundled OpenRGB is missing. Repair the MK RGB installation.");
-        var info = new ProcessStartInfo(exe) { UseShellExecute = false, CreateNoWindow = true };
-        foreach (var arg in new[] { "--server", "--server-host", "127.0.0.1", "--server-port", "6743", "--noautoconnect", "--config", Path.Combine(Paths.MachineData, "OpenRGB") })
-            info.ArgumentList.Add(arg);
-        rgb = Process.Start(info);
         return true;
     }
     async Task<CalibrationResult> Calibrate(CalibrationRequest request, CancellationToken token)

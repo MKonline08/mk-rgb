@@ -1,6 +1,6 @@
 # Installation and recovery
 
-Download **MK-RGB-0.1.0-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
+Download **MK-RGB-0.1.1-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
 
 The EXE installer contains the MSI and installs the .NET runtime with MK RGB, the `MkRgbHardware` Windows service, and a pinned OpenRGB backend under `Program Files/MK RGB`. It creates a Start-menu shortcut. Administrative installation is required for the service. The installing user, administrators, and SYSTEM can access the named pipe. Other Windows users cannot control that installation through the app's pipe.
 
@@ -9,6 +9,14 @@ The EXE installer contains the MSI and installs the .NET runtime with MK RGB, th
 3. In Cooling, identify the physical fan/pump, select its matching RPM reading and temperature guard, and commission the channel. Stop/restart testing is an explicit option for non-pump channels that allow zero duty. Keep pumps identified as pumps. Commissioning restores default control on completion or cancellation.
 4. Map curve sources and apply the policy. Imported cooling templates can be mapped to a local channel, but remain disabled until commissioned and explicitly applied.
 5. Save the profile. Closing the UI leaves the service controlling enabled cooling channels. Exiting the tray application stops session-reactive lighting inputs.
+
+## Startup, tray, and RGB conflicts
+
+Settings provides opt-in **Start with Windows**, **Launch hidden in the system tray**, **Connect RGB on launch**, and **Enable lighting on launch**. Click **Save preferences** to apply them. Closing the window keeps the app in the tray; use **Exit MK RGB** to stop the desktop process. Startup registration is per Windows user and uses the current executable path.
+
+You can ask known competing RGB app windows to close before connection, either manually or with the opt-in setting. This is graceful closure; MK RGB does not kill fan controllers or stop background services. Close remaining services using their own app. An existing OpenRGB SDK server on loopback port 6743 can be reused.
+
+Connect RGB waits for the bundled backend to become ready. If a motherboard ARGB header reports **0 LEDs**, it has no configured output. In Lighting, set that header to the actual connected LED count and select **Resize channel**. Do not guess header lengths. Unused headers should stay at zero.
 
 ## Recovery and updates
 

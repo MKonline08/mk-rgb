@@ -83,6 +83,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     readonly Extensions extensions = new(AppContext.BaseDirectory);
     readonly Dictionary<string, (IRgbController Controller, string Native)> extensionRgb = [];
     readonly List<(IEventSource Source, Action<string, double> Handler)> eventHandlers = [];
+    readonly SemaphoreSlim rgbConnection = new(1);
     bool settingsWritable = true;
     Sensors? fallback; Task? polling; Task? rendering; Profile profile; string status = "Discovering hardware…"; string connection = "Connecting";
     public Settings Settings
@@ -160,6 +161,16 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         }
         polling = Poll();
         rendering = Render();
+        if (Settings.ConnectRgbOnLaunch || Settings.EnableLightingOnLaunch)
+            _ = Run(async () =>
+            {
+                // Poll establishes service availability before starting privileged discovery.
+                for (var i = 0; i < 30 && connection == "Connecting"; i++)
+                    await Task.Delay(100, life.Token);
+                await ConnectRgb();
+                LightingEnabled = Settings.EnableLightingOnLaunch;
+                Changed(nameof(LightingEnabled));
+            });
         _ = Run(LoadCatalog);
         if (Settings.ApiEnabled)
             _ = Run(RestartApi);
@@ -199,6 +210,18 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         SettingsStore.ValidateProfile(profile);
         store.Save(Settings);
         Status = "Profile saved locally.";
+    }
+    public void SavePreferences()
+    {
+        SettingsStore.Validate(Settings);
+        Save();
+        StartupPreferences.Apply(Settings.StartWithWindows, Settings.StartInTray);
+        Status = "Preferences saved. Startup and tray options apply on the next launch.";
+    }
+    public async Task CloseRgbApps()
+    {
+        await MkRgb.Hardware.Sensors.CloseRgbAppsAsync(life.Token);
+        Status = "Competing RGB app windows were asked to close. Background services must be stopped through their own app.";
     }
     public void Record() => history.Record(Profile);
     public void Undo()
@@ -264,12 +287,35 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     public EffectContext Context() => new(clock.Elapsed.TotalSeconds, Snapshot.Sensors.Where(s => s.IsFresh(DateTimeOffset.UtcNow)).GroupBy(s => s.Id).ToDictionary(g => g.Key, g => g.Last().Value!.Value), Inputs.Spectrum, Inputs.Screen, events.Where(e => DateTimeOffset.UtcNow - e.Value.At < TimeSpan.FromSeconds(15)).ToDictionary(e => e.Key, e => e.Value.Value));
     public async Task ConnectRgb()
     {
-        if (ServiceConnected)
+        await rgbConnection.WaitAsync(life.Token);
+        try { await DiscoverRgb(); }
+        finally { rgbConnection.Release(); }
+    }
+    async Task DiscoverRgb()
+    {
+        Status = "Starting RGB backend and scanning devices…";
+        if (Settings.CloseRgbAppsOnConnect)
+            await CloseRgbApps();
+        // Check the pipe directly: the user can connect before the first monitor poll finishes.
+        try
         {
-            await PipeClient.Call<bool>("startRgb");
-            await Task.Delay(1800);
+            await PipeClient.Call<HardwareSnapshot>("snapshot", timeout: 1200, token: life.Token);
+            ServiceConnected = true;
         }
-        var devices = await Rgb.DiscoverAsync(life.Token);
+        catch (OperationCanceledException) when (!life.IsCancellationRequested && !ServiceConnected)
+        {
+            // Portable mode can use an already running SDK server.
+        }
+        if (ServiceConnected)
+            await PipeClient.Call<bool>("startRgb", timeout: 65000, token: life.Token);
+        List<Device> devices;
+        try { devices = await Rgb.DiscoverAsync(life.Token); }
+        catch (System.Net.Sockets.SocketException e)
+        {
+            throw new IOException(ServiceConnected
+                ? "OpenRGB SDK disconnected. Retry Connect RGB. " + e.Message
+                : "RGB backend is offline. Install MK RGB with the Setup EXE to start it automatically, or start OpenRGB's SDK server on 127.0.0.1:6743.", e);
+        }
         extensionRgb.Clear();
         foreach (var adapter in extensions.RgbControllers)
         {
@@ -411,9 +457,10 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
                     if (Rgb.NeedsDiscovery)
                         await ConnectRgb();
                     var context = Context();
-                    foreach (var d in Profile.Layout.Where(p => p.DeviceId.StartsWith("openrgb:")))
+                    var connected = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0).Select(d => d.Id).ToHashSet();
+                    foreach (var d in Profile.Layout.Where(p => p.DeviceId.StartsWith("openrgb:") && connected.Contains(p.DeviceId)).ToList())
                         await Rgb.WriteAsync(d.DeviceId, Effects.Render(Profile, d, context), life.Token);
-                    foreach (var d in Profile.Layout.Where(p => extensionRgb.ContainsKey(p.DeviceId)))
+                    foreach (var d in Profile.Layout.Where(p => extensionRgb.ContainsKey(p.DeviceId)).ToList())
                     {
                         var adapter = extensionRgb[d.DeviceId];
                         await adapter.Controller.WriteAsync(adapter.Native, Effects.Render(Profile, d, context), life.Token);
@@ -502,7 +549,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     public async Task CheckUpdates()
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("MK-RGB/0.1.0");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("MK-RGB/0.1.1");
         using var response = await http.GetAsync("https://api.github.com/repos/MKonline08/mk-rgb/releases/latest");
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
@@ -512,7 +559,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         response.EnsureSuccessStatusCode();
         using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var tag = json.RootElement.GetProperty("tag_name").GetString() ?? "";
-        Status = Version.TryParse(tag.TrimStart('v'), out var version) && version > new Version(0, 1, 0)
+        Status = Version.TryParse(tag.TrimStart('v'), out var version) && version > typeof(MainViewModel).Assembly.GetName().Version
             ? $"Update {tag} is available. Open Releases to review and install it."
             : "You are running the latest published version.";
     }
@@ -520,7 +567,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     {
         var report = new
         {
-            version = "0.1.0",
+            version = typeof(MainViewModel).Assembly.GetName().Version?.ToString(),
             os = Environment.OSVersion.VersionString,
             service = ServiceConnected,
             devices = Devices.Select(d => new { d.Name, d.Vendor, d.Capabilities, d.Verified }),

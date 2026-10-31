@@ -101,25 +101,54 @@ public sealed class Sensors : ISensorProvider, IFanController, IDisposable
     {
         lock (sync)
         {
+            List<Exception> errors = [];
             foreach (var id in owned.Keys.ToList())
                 try
                 {
                     Restore(id);
                 }
-                catch { /* Attempt every owned channel even if one is disconnected. */ }
+                catch (Exception e) { errors.Add(e); }
+            if (errors.Count > 0)
+                throw new AggregateException("Some fan channels could not restore firmware control.", errors);
         }
     }
     public void Dispose()
     {
         lock (sync)
         {
-            RestoreAll();
-            computer.Close();
+            try { RestoreAll(); }
+            finally { computer.Close(); }
         }
     }
     public static List<string> Conflicts()
     {
         string[] names = ["SignalRgb", "SignalRGB", "iCUE", "LightingService", "Mystic_Light_Service", "RGBFusion", "FanControl"];
         return Process.GetProcesses().Select(p => { try { return p.ProcessName; } catch { return ""; } finally { p.Dispose(); } }).Where(p => names.Contains(p, StringComparer.OrdinalIgnoreCase)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+    public static async Task CloseRgbAppsAsync(CancellationToken token)
+    {
+        // Graceful window closure only: never terminate cooling controllers or services.
+        string[] rgbNames = ["SignalRgb", "iCUE", "RGBFusion", "MysticLight", "ArmouryCrate", "Aura"];
+        List<string> remaining = [];
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                if (!rgbNames.Contains(process.ProcessName, StringComparer.OrdinalIgnoreCase)) continue;
+                var name = process.ProcessName;
+                try
+                {
+                    if (!process.CloseMainWindow()) { remaining.Add(name); continue; }
+                    using var limit = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    limit.CancelAfter(5000);
+                    try { await process.WaitForExitAsync(limit.Token); }
+                    catch (OperationCanceledException) when (!token.IsCancellationRequested) { remaining.Add(name); }
+                }
+                catch (InvalidOperationException) { }
+                catch (System.ComponentModel.Win32Exception) { remaining.Add(name); }
+            }
+        }
+        if (remaining.Count > 0)
+            throw new InvalidOperationException("Close these RGB apps through their tray menus before connecting: " + string.Join(", ", remaining.Distinct()));
     }
 }

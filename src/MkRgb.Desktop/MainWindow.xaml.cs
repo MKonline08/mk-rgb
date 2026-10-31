@@ -21,7 +21,7 @@ public partial class MainWindow : Window
         pages = new(vm, this);
         vm.ProfileChanged += () => { Profiles.Items.Refresh(); Render(); };
         vm.Alert += message => { tray?.ShowBalloonTip(5000, "MK RGB", message, System.Windows.Forms.ToolTipIcon.Warning); vm.Status = message; };
-        Loaded += (_, _) => { Render(); vm.Start(); SetupTray(); var handle = new WindowInteropHelper(this).Handle; HwndSource.FromHwnd(handle)?.AddHook(Hook); RegisterHotKey(handle, 1, 0x0002 | 0x0001, 0x4D); };
+        Loaded += (_, _) => { Render(); vm.Start(); SetupTray(); var handle = new WindowInteropHelper(this).Handle; HwndSource.FromHwnd(handle)?.AddHook(Hook); RegisterHotKey(handle, 1, 0x0002 | 0x0001, 0x4D); if (vm.Settings.StartInTray || Environment.GetCommandLineArgs().Contains("--background")) Hide(); };
         Closing += OnClosing;
     }
     void SetupTray()

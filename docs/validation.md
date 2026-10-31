@@ -12,6 +12,13 @@ MK RGB 0.1.0 is a **development preview**, not a completed acceptance release. T
 - A later read-only session connected to the installed `MkRgbHardware` service and exposed GPU fan channels plus approximately 162 available readings. CPU temperature remained unavailable. No commissioning or fan-write validation was performed by this review.
 - Self-contained MSI and portable ZIP packaging succeeded locally. CI runs installation, read-only service IPC, repair, service termination/recovery, and uninstall on a disposable Windows runner. Consult the actual workflow result before treating those checks as passed.
 
+## Fix validation on 2026-10-31
+
+- Reproduced OpenRGB exiting before opening port 6743 when its configuration directory was absent. Creating the directory allowed read-only discovery of ASUS TUF GAMING B650-PLUS WIFI, ASUS TUF GeForce RTX 3060 Ti OC (4 LEDs), and SteelSeries Rival 5 (10 LEDs). The motherboard's three resizable ARGB headers had zero configured LEDs; no header lengths were guessed or changed.
+- Added coverage for realistic protocol-3 mode/zone descriptions, direct-mode selection and exact RGB frame bytes, hardware resize bounds, and startup command quoting. These tests use a loopback fixture rather than physical output.
+- The installer acceptance script now starts the real bundled RGB backend on the disposable runner and verifies its configuration directory and SDK port, in addition to the existing MSI/EXE lifecycle checks. Refer to the workflow for this release's actual result.
+- No physical fan writes or visible lighting-output confirmation were performed. Desktop screenshots and interactive UI testing were stopped at the user's request.
+
 ## Acceptance work still required
 
 | Area | Remaining evidence |

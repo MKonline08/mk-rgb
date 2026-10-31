@@ -5,20 +5,27 @@ function Install([string[]]$Arguments) {
     $process = Start-Process msiexec.exe -ArgumentList $Arguments -WindowStyle Hidden -Wait -PassThru
     if ($process.ExitCode -notin 0,3010) { throw "Windows Installer failed: $($process.ExitCode)" }
 }
-function Snapshot {
+function Rpc([string]$Method = 'snapshot') {
     $pipe = [IO.Pipes.NamedPipeClientStream]::new('.', 'MkRgb.Hardware.v1', [IO.Pipes.PipeDirection]::InOut)
     try {
         $pipe.Connect(10000)
-        $bytes = [Text.Encoding]::UTF8.GetBytes('{"Method":"snapshot","Payload":"","Version":1}')
+        $bytes = [Text.Encoding]::UTF8.GetBytes((@{ Method=$Method; Payload=''; Version=1 } | ConvertTo-Json -Compress))
         $pipe.Write([BitConverter]::GetBytes($bytes.Length)); $pipe.Write($bytes); $pipe.Flush()
         $reader = [IO.BinaryReader]::new($pipe)
         $count = $reader.ReadInt32()
         if($count -lt 1 -or $count -gt 4000000) { throw 'Invalid snapshot length' }
         $result = [Text.Encoding]::UTF8.GetString($reader.ReadBytes($count)) | ConvertFrom-Json
         if(-not $result.Success) { throw $result.Error }
-        $data = $result.Payload | ConvertFrom-Json
-        if(-not $data.At) { throw 'Snapshot is missing its timestamp' }
+        return ($result.Payload | ConvertFrom-Json)
     } finally { $pipe.Dispose() }
+}
+function Snapshot { if (-not (Rpc).At) { throw 'Snapshot is missing its timestamp' } }
+function RgbReady {
+    # Regression: a clean install used to report success although --config did not exist.
+    if (-not (Rpc 'startRgb')) { throw 'RGB backend failed to start' }
+    if (-not (Test-Path (Join-Path $env:ProgramData 'MK RGB/OpenRGB'))) { throw 'RGB configuration directory was not created' }
+    $client = [Net.Sockets.TcpClient]::new()
+    try { $client.Connect('127.0.0.1', 6743) } finally { $client.Dispose() }
 }
 $full = (Resolve-Path -LiteralPath $Msi).Path
 $logs = Join-Path $PWD 'artifacts/install-logs'
@@ -27,6 +34,7 @@ try {
     Install @('/i', ('"'+$full+'"'), '/qn', '/norestart', '/L*v', ('"'+$logs+'\install.log"'))
     (Get-Service MkRgbHardware).WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
     Snapshot
+    RgbReady
     Install @('/fa', ('"'+$full+'"'), '/qn', '/norestart', '/L*v', ('"'+$logs+'\repair.log"'))
     (Get-Service MkRgbHardware).WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
     Snapshot
@@ -56,6 +64,7 @@ if ($Exe) {
         RunBundle '/install'
         (Get-Service MkRgbHardware).WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
         Snapshot
+        RgbReady
         RunBundle '/repair'
         Snapshot
     } finally { RunBundle '/uninstall' }
