@@ -81,7 +81,7 @@ public sealed class Pages(MainViewModel vm, MainWindow window)
     CheckBox Check(string title, object source, string path)
     {
         var b = new CheckBox { Content = title };
-        b.SetBinding(ToggleButton.IsCheckedProperty, Bind(source, path));
+        b.SetBinding(ToggleButton.IsCheckedProperty, new Binding(path) { Source = source, Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
         b.PreviewMouseLeftButtonDown += (_, _) => vm.Record();
         return b;
     }

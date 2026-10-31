@@ -1,6 +1,7 @@
 Download **MK-RGB-0.1.1-Setup.exe** below to install MK RGB and its hardware service. The MSI is optional for managed deployments. Compare downloads against SHA256SUMS.txt. This is an unsigned development preview.
 
 - Fix OpenRGB immediately exiting because its configuration directory did not exist.
+- Apply lighting-output and other checkbox toggles immediately, without requiring focus to move to another control.
 - Wait up to 60 seconds for the backend to become ready, report early exits, and keep monitoring responsive during RGB startup.
 - Add opt-in Windows startup, tray launch, automatic RGB connection/output, and graceful closure of competing RGB app windows. Fan controllers and background services are never terminated automatically.
 - Keep disconnected devices in saved layouts without sending frames to them or pausing every connected device.
