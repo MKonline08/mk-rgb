@@ -1,11 +1,11 @@
 # Installation and recovery
 
-Download **MK-RGB-0.1.1-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
+Download **MK-RGB-0.1.2-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
 
 The EXE installer contains the MSI and installs the .NET runtime with MK RGB, the `MkRgbHardware` Windows service, and a pinned OpenRGB backend under `Program Files/MK RGB`. It creates a Start-menu shortcut. Administrative installation is required for the service. The installing user, administrators, and SYSTEM can access the named pipe. Other Windows users cannot control that installation through the app's pipe.
 
 1. Launch MK RGB. Monitoring starts without enabling lighting or fan writes.
-2. Open Lighting and connect RGB. Close competing RGB/fan controllers before claiming devices. Assign imported virtual placements to detected devices through **Hardware assignment**.
+2. Open Lighting, pick a color from the wheel or swatches, and press **Apply to all devices**. Choose a specific device in **Apply to** for a separate color. This connects RGB, enables output, and saves the choice. For discovery without output, use **Find / refresh devices**. Close competing hardware controllers before claiming devices.
 3. In Cooling, identify the physical fan/pump, select its matching RPM reading and temperature guard, and commission the channel. Stop/restart testing is an explicit option for non-pump channels that allow zero duty. Keep pumps identified as pumps. Commissioning restores default control on completion or cancellation.
 4. Map curve sources and apply the policy. Imported cooling templates can be mapped to a local channel, but remain disabled until commissioned and explicitly applied.
 5. Save the profile. Closing the UI leaves the service controlling enabled cooling channels. Exiting the tray application stops session-reactive lighting inputs.
@@ -16,7 +16,11 @@ Settings provides opt-in **Start with Windows**, **Launch hidden in the system t
 
 You can ask known competing RGB app windows to close before connection, either manually or with the opt-in setting. This is graceful closure; MK RGB does not kill fan controllers or stop background services. Close remaining services using their own app. An existing OpenRGB SDK server on loopback port 6743 can be reused.
 
-Connect RGB waits for the bundled backend to become ready. If a motherboard ARGB header reports **0 LEDs**, it has no configured output. In Lighting, set that header to the actual connected LED count and select **Resize channel**. Do not guess header lengths. Unused headers should stay at zero.
+RGB connection waits for the bundled backend to become ready. If a motherboard ARGB header reports **0 LEDs**, it has no configured output. Open **Devices**, choose the connected component's LED count and quantity for that header, then **Save components**. A custom count supports other fans and strips. Counts are saved locally and restored after reconnecting or restarting the backend. Do not guess header lengths; mark unused headers unused.
+
+USB and motherboard controllers identify themselves, but passive ARGB fans and strips do not report their model or length. Support depends on the backend/adapter and available driver access. Detection does not certify visible lighting output.
+
+The old spatial layout and LED-index editors are under **Advanced → Layout**. Layered compositions, timelines, and graphs are under **Advanced → Studio**. Quick lighting affects selected devices directly and clears their old LED paint. Use **Use studio composition on all devices** in Studio to return them to the advanced layers.
 
 ## Recovery and updates
 

@@ -7,6 +7,8 @@ public static class Effects
     public static Rgb[] Render(Profile profile, Placement device, EffectContext context)
     {
         var colors = new Rgb[Math.Clamp(device.LedCount, 1, 10000)];
+        IEnumerable<EffectLayer> composition = device.Lighting is { } quick ? [quick] : profile.Layers;
+        var layers = composition.Where(l => l.Group == "All" || l.Group == device.Group).ToArray();
         for (var i = 0; i < colors.Length; i++)
         {
             var local = colors.Length == 1 ? 0.5 : i / (double)(colors.Length - 1);
@@ -14,7 +16,7 @@ public static class Effects
             var x = (device.X + Math.Cos(radians) * local * device.Width) / 1000;
             var y = (device.Y + Math.Sin(radians) * local * device.Width) / 600;
             var color = Rgb.Black;
-            foreach (var layer in profile.Layers.Where(l => l.Group == "All" || l.Group == device.Group))
+            foreach (var layer in layers)
             {
                 if (local < layer.MaskStart || local > layer.MaskEnd)
                     continue;

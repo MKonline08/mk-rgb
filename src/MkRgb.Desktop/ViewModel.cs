@@ -124,6 +124,54 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         }
     }
     public string DeviceCount => Devices.Count.ToString("00"); public string SensorCount => Sensors.Count.ToString("00");
+    public string RgbSummary => Devices.Count(d => d.Capabilities.HasFlag(Capability.Rgb)) is var n && n > 0
+        ? $"{n} RGB devices found · {Devices.Sum(d => d.Zones.Count(z => NeedsComponentSetup(d, z)))} headers need setup"
+        : "Connect your RGB devices to get started";
+    public bool NeedsComponentSetup(Device device, Zone zone) => RgbSetup.NeedsSetup(device.Id, zone, Settings.RgbZoneCounts);
+    public void PauseLighting()
+    {
+        LightingEnabled = false;
+        Changed(nameof(LightingEnabled));
+        Status = "Lighting paused. Devices keep their last color.";
+    }
+    public async Task ApplyQuickLighting(string? id, EffectKind kind, string color, double brightness, double speed)
+    {
+        // Validate before connecting or changing the existing composition.
+        QuickLighting.Apply(new Profile(), [], kind, color, brightness, speed);
+        if (!Devices.Any(d => d.Capabilities.HasFlag(Capability.Rgb)) || Rgb.NeedsDiscovery)
+            await ConnectRgb();
+        var targets = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0 && (string.IsNullOrEmpty(id) || d.Id == id)).Select(d => d.Id).ToList();
+        if (targets.Count == 0)
+            throw new InvalidOperationException("No configured RGB devices are available. Open Devices and configure the connected components.");
+        Record();
+        var count = QuickLighting.Apply(Profile, targets, kind, color, brightness, speed);
+        Save();
+        LightingEnabled = true;
+        Changed(nameof(LightingEnabled));
+        ManualUntil = DateTimeOffset.UtcNow.AddMinutes(15);
+        Status = $"Lighting enabled for {count} device(s). Headers with no components configured will stay dark.";
+    }
+    public async Task ConfigureRgbZone(string id, Zone zone, int count)
+    {
+        await rgbConnection.WaitAsync(life.Token);
+        var resume = LightingEnabled;
+        PauseLighting();
+        try
+        {
+            await Rgb.ResizeAsync(id, int.Parse(zone.Id), count, life.Token);
+            var inventory = await Rgb.DiscoverAsync(life.Token);
+            if (inventory.FirstOrDefault(d => d.Id == id)?.Zones.FirstOrDefault(z => z.Id == zone.Id)?.Count != count)
+                throw new IOException("The controller did not accept this component count. Check the selected header and retry.");
+            if (!Settings.RgbZoneCounts.TryGetValue(id, out var counts)) Settings.RgbZoneCounts[id] = counts = [];
+            counts[zone.Id] = count;
+            Save();
+            await DiscoverRgb();
+            LightingEnabled = resume;
+            Changed(nameof(LightingEnabled));
+            Status = count == 0 ? "Header marked unused and saved." : $"Saved {count} LEDs on {zone.Name}. Choose a color in Lighting to test them.";
+        }
+        finally { rgbConnection.Release(); }
+    }
     public string Cpu => Sensors.FirstOrDefault(s => s.Sample.Kind == SensorKind.Temperature && s.Sample.Value is > 0 && s.Device.Contains("cpu", StringComparison.OrdinalIgnoreCase))?.Value ?? "Unavailable";
     public string Gpu => Sensors.Where(s => s.Sample.Kind == SensorKind.Temperature && s.Sample.Value is > 0 && s.Device.Contains("gpu", StringComparison.OrdinalIgnoreCase)).OrderByDescending(s => s.Device.Contains("nvidia")).FirstOrDefault()?.Value ?? "Unavailable";
     public Profile Profile
@@ -309,7 +357,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         if (ServiceConnected)
             await PipeClient.Call<bool>("startRgb", timeout: 65000, token: life.Token);
         List<Device> devices;
-        try { devices = await Rgb.DiscoverAsync(life.Token); }
+        try { devices = await RgbSetup.RestoreAsync(Rgb, Settings.RgbZoneCounts, life.Token); }
         catch (System.Net.Sockets.SocketException e)
         {
             throw new IOException(ServiceConnected
@@ -456,15 +504,23 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
                 {
                     if (Rgb.NeedsDiscovery)
                         await ConnectRgb();
-                    var context = Context();
-                    var connected = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0).Select(d => d.Id).ToHashSet();
-                    foreach (var d in Profile.Layout.Where(p => p.DeviceId.StartsWith("openrgb:") && connected.Contains(p.DeviceId)).ToList())
-                        await Rgb.WriteAsync(d.DeviceId, Effects.Render(Profile, d, context), life.Token);
-                    foreach (var d in Profile.Layout.Where(p => extensionRgb.ContainsKey(p.DeviceId)).ToList())
+                    await rgbConnection.WaitAsync(life.Token);
+                    try
                     {
-                        var adapter = extensionRgb[d.DeviceId];
-                        await adapter.Controller.WriteAsync(adapter.Native, Effects.Render(Profile, d, context), life.Token);
+                        if (LightingEnabled)
+                        {
+                            var context = Context();
+                            var connected = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0).Select(d => d.Id).ToHashSet();
+                            foreach (var d in Profile.Layout.Where(p => p.DeviceId.StartsWith("openrgb:") && connected.Contains(p.DeviceId)).ToList())
+                                await Rgb.WriteAsync(d.DeviceId, Effects.Render(Profile, d, context), life.Token);
+                            foreach (var d in Profile.Layout.Where(p => extensionRgb.ContainsKey(p.DeviceId)).ToList())
+                            {
+                                var adapter = extensionRgb[d.DeviceId];
+                                await adapter.Controller.WriteAsync(adapter.Native, Effects.Render(Profile, d, context), life.Token);
+                            }
+                        }
                     }
+                    finally { rgbConnection.Release(); }
                 }
                 if (System.Windows.Application.Current.MainWindow?.WindowState != WindowState.Minimized && System.Windows.Application.Current.MainWindow?.IsVisible == true)
                     Frame?.Invoke();
@@ -549,7 +605,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     public async Task CheckUpdates()
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("MK-RGB/0.1.1");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("MK-RGB/0.1.2");
         using var response = await http.GetAsync("https://api.github.com/repos/MKonline08/mk-rgb/releases/latest");
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {

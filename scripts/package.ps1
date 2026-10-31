@@ -1,7 +1,7 @@
 param(
     [string]$Dotnet = 'dotnet',
     [string]$Wix = 'wix',
-    [string]$Version = '0.1.1'
+    [string]$Version = '0.1.2'
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent

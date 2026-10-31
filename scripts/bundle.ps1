@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Msi, [string]$Wix = 'wix', [string]$Version = '0.1.1')
+param([Parameter(Mandatory)][string]$Msi, [string]$Wix = 'wix', [string]$Version = '0.1.2')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $msiFile = (Resolve-Path -LiteralPath $Msi).Path

@@ -4,7 +4,7 @@
     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
-    <Deterministic>true</Deterministic><Version>0.1.1</Version>
+    <Deterministic>true</Deterministic><Version>0.1.2</Version>
     <Authors>MKonline08</Authors><Product>MK RGB</Product>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>

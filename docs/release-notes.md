@@ -1,12 +1,12 @@
-Download **MK-RGB-0.1.1-Setup.exe** below to install MK RGB and its hardware service. The MSI is optional for managed deployments. Compare downloads against SHA256SUMS.txt. This is an unsigned development preview.
+Download **MK-RGB-0.1.2-Setup.exe** below. It updates the installed app and hardware service. Initial builds are unsigned development previews; checksums are in SHA256SUMS.txt.
 
-- Fix OpenRGB immediately exiting because its configuration directory did not exist.
-- Apply lighting-output and other checkbox toggles immediately, without requiring focus to move to another control.
-- Wait up to 60 seconds for the backend to become ready, report early exits, and keep monitoring responsive during RGB startup.
-- Add opt-in Windows startup, tray launch, automatic RGB connection/output, and graceful closure of competing RGB app windows. Fan controllers and background services are never terminated automatically.
-- Keep disconnected devices in saved layouts without sending frames to them or pausing every connected device.
-- Explain zero-length ARGB headers and retain manual channel resizing; configure the actual connected LED count.
-- Report fan restoration failures, invalidate failed RGB writes, and check complete protocol descriptions.
-- Publish tested installers and corresponding third-party sources on version tags.
+- Lighting is now the first screen: color wheel, swatches, brightness, and Solid / Breathe / Rainbow / Color wave.
+- Pick a color and press **Apply to all devices**. Connection, output, and saving happen together. A device selector supports separate colors.
+- Old LED paint no longer blocks a new whole-device color. Quick lighting is separate from advanced layers, with an explicit switch back to the studio composition.
+- Devices needing component setup appear first. Add fans/strips by LED count and quantity, including custom components. Header lengths are saved and restored after backend reconnect/restart.
+- Spatial layouts, LED indexes, timelines, and node graphs moved under Advanced. Profile tools are hidden from the everyday Lighting/Devices screens.
+- Existing cooling, monitoring, startup/tray preferences, and advanced profiles are preserved.
 
-Read-only discovery on the reference PC found ASUS TUF GAMING B650-PLUS WIFI, ASUS TUF GeForce RTX 3060 Ti OC, and SteelSeries Rival 5. Discovery and SDK frame tests do not certify visible physical output. Fan commissioning, real audio/screen/CS2 capture, other hardware, and the full clean-VM matrix remain subject to the validation record.
+Passive ARGB fans and strips cannot identify their model or LED count automatically; unused headers must remain unused. Backend support and driver access determine hardware availability. This update does not claim universal hardware compatibility or verified physical GPU/motherboard output.
+
+Automated checks cover whole-device color application, old-paint removal, per-device isolation, persistence, header limits/restoration, and the existing engine/backend/API tests. No desktop control, screenshots, or physical lighting tests were performed for this update, at the user's request.

@@ -21,6 +21,10 @@ MK RGB 0.1.0 is a **development preview**, not a completed acceptance release. T
 
 ## Acceptance work still required
 
+### 0.1.2 lighting workflow update
+
+The default page is now a simple whole-device color/effect editor. Component configuration is on Devices; spatial layout, LED painting, timelines, and graphs are behind Advanced. Automated regression coverage verifies selected-device isolation, clearing old LED paint, brightness, saved quick colors, component limits, reconnect restoration across multiple headers, rejection reporting, and ignored unused headers. No local app control, screenshots, physical RGB writes, or visual layout acceptance checks were performed for this update, following the user's preference. The release workflow verifies the installer on a disposable hosted Windows runner.
+
 | Area | Remaining evidence |
 | --- | --- |
 | Physical RGB | Enumerate connected controllers and LEDs; validate identity, channel resizing, color order, output, reconnect, and hot-plug on each controller. |

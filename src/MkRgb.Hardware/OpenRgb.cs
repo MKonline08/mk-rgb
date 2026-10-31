@@ -6,7 +6,7 @@ using MkRgb.Core;
 
 namespace MkRgb.Hardware;
 
-public sealed class OpenRgb(int port = 6743) : IRgbController
+public sealed class OpenRgb(int port = 6743) : IResizableRgbController
 {
     TcpClient? client; NetworkStream? stream; CancellationTokenSource? life;
     Task? receiver;

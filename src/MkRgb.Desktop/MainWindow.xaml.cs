@@ -11,7 +11,7 @@ namespace MkRgb.Desktop;
 
 public partial class MainWindow : Window
 {
-    MainViewModel? vm; Pages? pages; System.Windows.Forms.NotifyIcon? tray; Window? overlay; DispatcherTimer? overlayTimer; bool exiting; string current = "Overview";
+    MainViewModel? vm; Pages? pages; System.Windows.Forms.NotifyIcon? tray; Window? overlay; DispatcherTimer? overlayTimer; bool exiting; string current = "Lighting";
     public MainWindow()
     {
         InitializeComponent();
@@ -57,6 +57,7 @@ public partial class MainWindow : Window
         if (pages is null)
             return;
         PageHeading.Text = current;
+        ProfileTools.Visibility = current is "Lighting" or "Devices" ? Visibility.Collapsed : Visibility.Visible;
         PageContent.Content = pages.Build(current);
     }
     public void Go(string page)
@@ -72,6 +73,11 @@ public partial class MainWindow : Window
                 Navigation.SelectedItem = item;
                 break;
             }
+        if (current != page)
+        {
+            current = page;
+            Render();
+        }
     }
     void SaveProfile(object sender, RoutedEventArgs e)
     {

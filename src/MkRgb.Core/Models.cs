@@ -71,6 +71,7 @@ public record FanChannel(string Id, string Name, string DeviceId, double Min, do
 public record HardwareSnapshot(List<Device> Devices, List<SensorSample> Sensors, List<FanChannel> Fans, List<string> Warnings, DateTimeOffset At);
 public record Placement
 {
+    public EffectLayer? Lighting { get; set; }
     public string DeviceId { get; set; } = ""; public string Name { get; set; } = "";
     public double X { get; set; } = 100; public double Y { get; set; } = 100;
     public double Width { get; set; } = 180; public double Height { get; set; } = 60; public double Rotation
@@ -180,6 +181,7 @@ public record AlertRule
 }
 public record Settings
 {
+    public Dictionary<string, Dictionary<string, int>> RgbZoneCounts { get; set; } = [];
     public bool StartWithWindows { get; set; }
     public bool StartInTray { get; set; }
     public bool ConnectRgbOnLaunch { get; set; }
@@ -230,6 +232,10 @@ public interface IFanController
 public interface IRgbController : IAsyncDisposable
 {
     Task<List<Device>> DiscoverAsync(CancellationToken token); Task WriteAsync(string id, Rgb[] colors, CancellationToken token);
+}
+public interface IResizableRgbController : IRgbController
+{
+    Task ResizeAsync(string id, int zone, int count, CancellationToken token);
 }
 public interface IEventSource
 {

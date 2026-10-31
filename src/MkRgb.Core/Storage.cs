@@ -48,6 +48,8 @@ public sealed class SettingsStore(string directory)
             throw new InvalidDataException("Invalid performance, retention, playlist, or API settings.");
         foreach (var p in s.Profiles)
             ValidateProfile(p);
+        if (s.RgbZoneCounts.Count > 256 || s.RgbZoneCounts.Any(d => d.Value.Count > 256 || d.Value.Any(z => !int.TryParse(z.Key, out var index) || index < 0 || z.Value is < 0 or > 10000)))
+            throw new InvalidDataException("Invalid saved RGB header configuration.");
     }
     public static void ValidateProfile(Profile p)
     {
@@ -72,6 +74,8 @@ public sealed class SettingsStore(string directory)
         }
         foreach (var d in p.Layout)
         {
+            if (d.Lighting is { } quick)
+                ValidateProfile(new Profile { Layers = [quick], Layout = [], Fans = [] });
             if (d.LedCount is < 1 or > 10000 || !double.IsFinite(d.X) || !double.IsFinite(d.Y) || !double.IsFinite(d.Width) || !double.IsFinite(d.Height) || !double.IsFinite(d.Rotation) || d.Width <= 0 || d.Height <= 0 || !new[] { "RGB", "GRB", "BGR", "BRG", "RBG", "GBR" }.Contains(d.ColorOrder))
                 throw new InvalidDataException("Invalid device layout.");
             foreach (var led in d.LedOverrides)
