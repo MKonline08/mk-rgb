@@ -76,6 +76,19 @@ public class EngineTests
         var initial = e.Evaluate(p, [Temperature(60, now)], now);
         Assert.Equal(initial, e.Evaluate(p, [Temperature(59, now.AddSeconds(1))], now.AddSeconds(1)));
     }
+    [Fact]
+    public void HysteresisStillLowersDutyWhenCoolingSlowly()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var p = new FanPolicy { ChannelId = "f", Hysteresis = 3, Sources = [new() { SensorId = "cpu" }] };
+        var e = new CoolingEngine();
+        var initial = e.Evaluate(p, [Temperature(70, now)], now);
+        var duty = initial;
+        // Cool by 0.5 °C per second: every single step is inside the 3 °C band.
+        for (var i = 1; i <= 40; i++)
+            duty = e.Evaluate(p, [Temperature(70 - i * .5, now.AddSeconds(i))], now.AddSeconds(i));
+        Assert.True(duty < initial, $"Duty stayed at {duty}% after cooling from 70 °C to 50 °C.");
+    }
     [Theory]
     [InlineData(MixMode.Maximum, 70)]
     [InlineData(MixMode.Average, 50)]

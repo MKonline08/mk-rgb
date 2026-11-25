@@ -58,8 +58,10 @@ public sealed class OpenRgb(int port = 6743) : IResizableRgbController
             for (uint i = 0; i < count; i++)
             {
                 var d = Parse(await Request(i, 1, BitConverter.GetBytes(3u), token));
-                if (mapping.ContainsKey(d.Id))
-                    throw new InvalidDataException("Two RGB devices have the same identity; reconnect them separately.");
+                // Identical devices without serial numbers (e.g. matched RAM kits or fan hubs) share an identity.
+                // Number the extra copies instead of failing the whole scan.
+                for (var copy = 2; mapping.ContainsKey(d.Id); copy++)
+                    d = d with { Id = d.Id.Split('#')[0] + "#" + copy, Name = d.Name + " (" + copy + ")" };
                 mapping[d.Id] = (i, d.LedCount);
                 zoneMapping[d.Id] = d.Zones;
                 devices.Add(d);

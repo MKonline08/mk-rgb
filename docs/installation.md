@@ -34,7 +34,7 @@ Uninstall through Windows Installed Apps. The service is stopped and removed, an
 
 ## Driver availability
 
-OpenRGB 1.1 and LibreHardwareMonitor need compatible access to some motherboard, RAM, or CPU devices. A blocked driver means that capability is unavailable. For PawnIO installation consult https://pawnio.eu/. MK RGB does not change Memory Integrity, vulnerable-driver protection, Secure Boot, or other Windows security settings.
+OpenRGB 1.1 and LibreHardwareMonitor need compatible access to some motherboard, RAM, or CPU devices. A blocked driver means that capability is unavailable. The Setup EXE installs the signed PawnIO driver automatically (skipped if it is already installed); the portable ZIP includes `drivers\PawnIO_setup.exe`, which the Devices page can run for you. See https://pawnio.eu/. MK RGB does not change Memory Integrity, vulnerable-driver protection, Secure Boot, or other Windows security settings.
 
 ## Trusted extensions
 

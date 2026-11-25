@@ -50,6 +50,10 @@ public sealed class SettingsStore(string directory)
             ValidateProfile(p);
         if (s.RgbZoneCounts.Count > 256 || s.RgbZoneCounts.Any(d => d.Value.Count > 256 || d.Value.Any(z => !int.TryParse(z.Key, out var index) || index < 0 || z.Value is < 0 or > 10000)))
             throw new InvalidDataException("Invalid saved RGB header configuration.");
+        if (s.RecentColors.Count > 32)
+            throw new InvalidDataException("Too many recent colors.");
+        foreach (var color in s.RecentColors)
+            _ = Rgb.Parse(color);
     }
     public static void ValidateProfile(Profile p)
     {

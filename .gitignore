@@ -6,3 +6,4 @@ vendor/
 TestResults/
 *.user
 *.log
+.tools/

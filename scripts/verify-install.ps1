@@ -22,7 +22,10 @@ function Rpc([string]$Method = 'snapshot') {
 function Snapshot { if (-not (Rpc).At) { throw 'Snapshot is missing its timestamp' } }
 function RgbReady {
     # Regression: a clean install used to report success although --config did not exist.
-    if (-not (Rpc 'startRgb')) { throw 'RGB backend failed to start' }
+    # Rpc throws when the service reports failure. Newer services reply with a (often empty) list of
+    # detection warnings, so the reply itself is not a pass/fail value.
+    $warnings = Rpc 'startRgb'
+    foreach ($warning in @($warnings)) { if ($warning) { Write-Output "Backend note: $warning" } }
     if (-not (Test-Path (Join-Path $env:ProgramData 'MK RGB/OpenRGB'))) { throw 'RGB configuration directory was not created' }
     $client = [Net.Sockets.TcpClient]::new()
     try { $client.Connect('127.0.0.1', 6743) } finally { $client.Dispose() }
@@ -62,6 +65,9 @@ if ($Exe) {
     }
     try {
         RunBundle '/install'
+        # PawnIO is chained but non-vital: report the outcome so a driver block on the runner is visible.
+        $pawnIo = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO' -ErrorAction SilentlyContinue
+        if ($pawnIo) { Write-Output "PawnIO installed by the bundle: $($pawnIo.DisplayVersion)" } else { Write-Warning 'PawnIO was not installed by the bundle; see bundle-install.log.' }
         (Get-Service MkRgbHardware).WaitForStatus('Running', [TimeSpan]::FromSeconds(30))
         Snapshot
         RgbReady

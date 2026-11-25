@@ -77,7 +77,12 @@ public class LightingTests
     public async Task ARejectedHeaderResizeIsReportedInsteadOfClaimingItWasRestored()
     {
         await using var backend = new RestartedBackend { Reject = true };
-        await Assert.ThrowsAsync<IOException>(() => RgbSetup.RestoreAsync(backend, new() { ["board"] = new() { ["1"] = 36 } }, CancellationToken.None));
+        List<string> problems = [];
+        var devices = await RgbSetup.RestoreAsync(backend, new() { ["board"] = new() { ["1"] = 36 } }, CancellationToken.None, problems);
+        // The device is still found; the rejected header is reported, not hidden and not claimed as restored.
+        Assert.Single(devices);
+        Assert.Equal(0, devices[0].Zones[0].Count);
+        Assert.Contains(problems, p => p.Contains("ARGB 1"));
     }
     [Fact]
     public void OldSettingsNeedNoMigrationAndInvalidHeaderCountsAreRejected()

@@ -84,7 +84,8 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     readonly Dictionary<string, (IRgbController Controller, string Native)> extensionRgb = [];
     readonly List<(IEventSource Source, Action<string, double> Handler)> eventHandlers = [];
     readonly SemaphoreSlim rgbConnection = new(1);
-    bool settingsWritable = true;
+    bool settingsWritable = true; bool scanning;
+    string? identifyId; DateTimeOffset identifyUntil;
     Sensors? fallback; Task? polling; Task? rendering; Profile profile; string status = "Discovering hardware…"; string connection = "Connecting";
     public Settings Settings
     {
@@ -128,28 +129,67 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         ? $"{n} RGB devices found · {Devices.Sum(d => d.Zones.Count(z => NeedsComponentSetup(d, z)))} headers need setup"
         : "Connect your RGB devices to get started";
     public bool NeedsComponentSetup(Device device, Zone zone) => RgbSetup.NeedsSetup(device.Id, zone, Settings.RgbZoneCounts);
+    /// <summary>Reasons devices may be missing, from the last scan. Shown on the Devices page.</summary>
+    public List<string> DetectionNotes { get; private set; } = [];
+    public bool Scanning
+    {
+        get => scanning; private set
+        {
+            scanning = value;
+            Changed();
+            Changed(nameof(RgbStatus));
+        }
+    }
+    public int RgbDeviceCount => Devices.Count(d => d.Capabilities.HasFlag(Capability.Rgb));
+    public string RgbStatus => Scanning ? "Scanning…" : RgbDeviceCount == 0 ? "No RGB devices yet" : $"{RgbDeviceCount} RGB device{(RgbDeviceCount == 1 ? "" : "s")}";
+    public string ServiceStatus => ServiceConnected ? "Hardware service on" : "Hardware service off";
+    public void RememberColor(string hex)
+    {
+        hex = MkRgb.Core.Rgb.Parse(hex).Hex;
+        Settings.RecentColors.RemoveAll(c => c.Equals(hex, StringComparison.OrdinalIgnoreCase));
+        Settings.RecentColors.Insert(0, hex);
+        if (Settings.RecentColors.Count > 12)
+            Settings.RecentColors.RemoveRange(12, Settings.RecentColors.Count - 12);
+    }
+    /// <summary>Flashes one device for a few seconds so you can see which physical part it is.</summary>
+    public async Task IdentifyDevice(string id)
+    {
+        if (Rgb.NeedsDiscovery || !Devices.Any(d => d.Id == id))
+            await ConnectRgb();
+        if (Devices.FirstOrDefault(d => d.Id == id) is not { } device)
+            throw new InvalidOperationException("That device is no longer connected. Press Find devices.");
+        if (device.LedCount == 0)
+            throw new InvalidOperationException("Set up the fans or strips on this controller first; it has no LEDs configured yet.");
+        identifyId = id;
+        identifyUntil = DateTimeOffset.UtcNow.AddSeconds(4);
+        Status = $"Flashing {device.Name} for 4 seconds…";
+    }
     public void PauseLighting()
     {
         LightingEnabled = false;
         Changed(nameof(LightingEnabled));
         Status = "Lighting paused. Devices keep their last color.";
     }
-    public async Task ApplyQuickLighting(string? id, EffectKind kind, string color, double brightness, double speed)
+    public async Task ApplyQuickLighting(string? id, EffectKind kind, string color, double brightness, double speed, string? color2 = null, bool live = false)
     {
         // Validate before connecting or changing the existing composition.
-        QuickLighting.Apply(new Profile(), [], kind, color, brightness, speed);
+        QuickLighting.Apply(new Profile(), [], kind, color, brightness, speed, color2);
         if (!Devices.Any(d => d.Capabilities.HasFlag(Capability.Rgb)) || Rgb.NeedsDiscovery)
             await ConnectRgb();
         var targets = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0 && (string.IsNullOrEmpty(id) || d.Id == id)).Select(d => d.Id).ToList();
         if (targets.Count == 0)
             throw new InvalidOperationException("No configured RGB devices are available. Open Devices and configure the connected components.");
-        Record();
-        var count = QuickLighting.Apply(Profile, targets, kind, color, brightness, speed);
+        if (!live)
+            Record();
+        var count = QuickLighting.Apply(Profile, targets, kind, color, brightness, speed, color2);
+        if (!live)
+            RememberColor(color);
         Save();
         LightingEnabled = true;
         Changed(nameof(LightingEnabled));
         ManualUntil = DateTimeOffset.UtcNow.AddMinutes(15);
-        Status = $"Lighting enabled for {count} device(s). Headers with no components configured will stay dark.";
+        var unconfigured = Devices.Count(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount == 0);
+        Status = $"Lighting applied to {count} device{(count == 1 ? "" : "s")}." + (unconfigured > 0 ? $" {unconfigured} controller(s) still need fans/strips set up in Devices." : "");
     }
     public async Task ConfigureRgbZone(string id, Zone zone, int count)
     {
@@ -264,7 +304,29 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         SettingsStore.Validate(Settings);
         Save();
         StartupPreferences.Apply(Settings.StartWithWindows, Settings.StartInTray);
-        Status = "Preferences saved. Startup and tray options apply on the next launch.";
+        Status = "Preferences saved. Start with Windows takes effect now; launching hidden in the tray applies the next time MK RGB starts.";
+    }
+    /// <summary>Runs the PawnIO installer shipped with MK RGB (Windows asks for admin approval), or opens its website.</summary>
+    public async Task InstallPawnIo()
+    {
+        var setup = Path.Combine(AppContext.BaseDirectory, "drivers", "PawnIO_setup.exe");
+        if (!File.Exists(setup))
+        {
+            Process.Start(new ProcessStartInfo("https://pawnio.eu") { UseShellExecute = true });
+            Status = "Opened pawnio.eu. Install PawnIO, restart your PC, then press Find devices.";
+            return;
+        }
+        Status = "Installing PawnIO… approve the Windows prompt.";
+        Process? process;
+        try { process = Process.Start(new ProcessStartInfo(setup, "-install") { UseShellExecute = true, Verb = "runas" }); }
+        catch (System.ComponentModel.Win32Exception) { Status = "PawnIO was not installed (the Windows prompt was declined)."; return; }
+        if (process is null)
+            return;
+        using (process)
+            await process.WaitForExitAsync(life.Token);
+        Status = MkRgb.Hardware.OpenRgbBackend.PawnIoInstalled()
+            ? "PawnIO is installed. Restart your PC, then press Find devices to pick up RAM and motherboard lighting."
+            : "PawnIO setup closed without installing. You can try again from the Devices page.";
     }
     public async Task CloseRgbApps()
     {
@@ -341,9 +403,23 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     }
     async Task DiscoverRgb()
     {
+        Scanning = true;
+        try { await DiscoverRgbCore(); }
+        finally
+        {
+            Scanning = false;
+            Changed(nameof(RgbDeviceCount));
+        }
+    }
+    async Task DiscoverRgbCore()
+    {
         Status = "Starting RGB backend and scanning devices…";
+        List<string> notes = [];
         if (Settings.CloseRgbAppsOnConnect)
-            await CloseRgbApps();
+        {
+            try { await CloseRgbApps(); }
+            catch (InvalidOperationException e) { notes.Add(e.Message); }
+        }
         // Check the pipe directly: the user can connect before the first monitor poll finishes.
         try
         {
@@ -355,9 +431,41 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
             // Portable mode can use an already running SDK server.
         }
         if (ServiceConnected)
-            await PipeClient.Call<bool>("startRgb", timeout: 65000, token: life.Token);
-        List<Device> devices;
-        try { devices = await RgbSetup.RestoreAsync(Rgb, Settings.RgbZoneCounts, life.Token); }
+        {
+            // Services from 0.1.2 and earlier answer `true`; newer ones return a list of warnings.
+            var reply = await PipeClient.Call<System.Text.Json.JsonElement>("startRgb", timeout: 130000, token: life.Token);
+            if (reply.ValueKind == System.Text.Json.JsonValueKind.Array)
+                notes.AddRange(reply.EnumerateArray().Select(n => n.GetString() ?? "").Where(n => n.Length > 0));
+        }
+        else
+            notes.Add("The MK RGB hardware service isn't running. Without it, motherboard and RAM lighting and fan control are unavailable. Install MK RGB with the Setup EXE.");
+        List<Device> devices = [];
+        List<string> problems = [];
+        try
+        {
+            // OpenRGB opens its SDK port before it has finished detecting hardware, and keeps adding devices
+            // for a while. Read the list until it stops changing so slow devices are not missed.
+            var started = DateTimeOffset.UtcNow;
+            var previous = -1;
+            while (true)
+            {
+                problems.Clear();
+                try { devices = await RgbSetup.RestoreAsync(Rgb, Settings.RgbZoneCounts, life.Token, problems); }
+                catch (IOException) when (DateTimeOffset.UtcNow - started < TimeSpan.FromSeconds(45))
+                {
+                    // The inventory changed mid-scan; OpenRGB is still detecting.
+                    await Task.Delay(1500, life.Token);
+                    continue;
+                }
+                var elapsed = DateTimeOffset.UtcNow - started;
+                var settled = devices.Count == previous && !Rgb.NeedsDiscovery;
+                if ((settled && devices.Count > 0) || elapsed > TimeSpan.FromSeconds(devices.Count == 0 ? 12 : 30))
+                    break;
+                previous = devices.Count;
+                Status = devices.Count == 0 ? "Scanning for RGB devices…" : $"Scanning… {devices.Count} found so far";
+                await Task.Delay(2000, life.Token);
+            }
+        }
         catch (System.Net.Sockets.SocketException e)
         {
             throw new IOException(ServiceConnected
@@ -398,10 +506,15 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
                     Name = d.Name,
                     LedCount = Math.Max(1, d.LedCount),
                     X = 80,
-                    Y = 60 + Profile.Layout.Count * 85
+                    Y = 60 + Profile.Layout.Count * 115
                 });
         }
-        Status = devices.Count == 0 ? "OpenRGB connected; no controllable RGB devices found." : $"Connected {devices.Count} RGB devices. Enable lighting output when ready.";
+        notes.AddRange(problems);
+        var unconfigured = devices.Count(d => d.Zones.Any(z => NeedsComponentSetup(d, z)));
+        if (devices.Count == 0)
+            notes.Add("No RGB controllers answered the scan. See \"Device missing?\" below for the usual causes.");
+        DetectionNotes = notes;
+        Status = devices.Count == 0 ? "Scan finished: no RGB devices found." : $"Found {devices.Count} RGB device{(devices.Count == 1 ? "" : "s")}." + (unconfigured > 0 ? $" {unconfigured} need fans/strips set up in Devices." : "");
         Changed("");
         RefreshProfile();
     }
@@ -465,8 +578,9 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
                         Alert?.Invoke($"{s.Name}: {s.Value:0.#} {s.Unit}");
                     }
                 }
+                Changed(nameof(ServiceStatus));
                 if (tick % 3 == 0)
-                    EvaluateAutomation();
+                    await EvaluateAutomation();
                 if (tick++ % 3600 == 0)
                     telemetry.Prune(Settings.RetentionDays);
             }
@@ -483,9 +597,10 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
             catch (OperationCanceledException) { break; }
         }
     }
-    void EvaluateAutomation()
+    async Task EvaluateAutomation()
     {
-        var processes = Process.GetProcesses().Select(p => { try { return p.ProcessName; } catch { return ""; } finally { p.Dispose(); } }).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        // Listing processes takes tens of milliseconds; keep it off the UI thread.
+        var processes = await Task.Run(() => Process.GetProcesses().Select(p => { try { return p.ProcessName; } catch { return ""; } finally { p.Dispose(); } }).ToHashSet(StringComparer.OrdinalIgnoreCase));
         var power = System.Windows.Forms.SystemInformation.PowerStatus;
         var ctx = new AutomationContext(DateTimeOffset.Now, processes, Context().Sensors.ToDictionary(), power.BatteryLifePercent <= 1 ? power.BatteryLifePercent * 100 : -1, power.PowerLineStatus == System.Windows.Forms.PowerLineStatus.Online, Context().Events.ToDictionary());
         var selected = Automations.Select(Settings.Rules, ctx, ManualUntil);
@@ -500,32 +615,42 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
         {
             try
             {
-                if (LightingEnabled)
+                var identifying = identifyId != null && DateTimeOffset.UtcNow < identifyUntil;
+                var identifyEnded = identifyId != null && !identifying;
+                if (LightingEnabled || identifying || identifyEnded)
                 {
-                    if (Rgb.NeedsDiscovery)
+                    if (Rgb.NeedsDiscovery && !scanning)
                         await ConnectRgb();
                     await rgbConnection.WaitAsync(life.Token);
                     try
                     {
-                        if (LightingEnabled)
+                        var context = Context();
+                        var connected = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0).Select(d => d.Id).ToHashSet();
+                        var flashOn = (int)(clock.Elapsed.TotalSeconds * 4) % 2 == 0;
+                        foreach (var d in Profile.Layout.Where(p => connected.Contains(p.DeviceId) && (p.DeviceId.StartsWith("openrgb:") || extensionRgb.ContainsKey(p.DeviceId))).ToList())
                         {
-                            var context = Context();
-                            var connected = Devices.Where(d => d.Capabilities.HasFlag(Capability.Rgb) && d.LedCount > 0).Select(d => d.Id).ToHashSet();
-                            foreach (var d in Profile.Layout.Where(p => p.DeviceId.StartsWith("openrgb:") && connected.Contains(p.DeviceId)).ToList())
-                                await Rgb.WriteAsync(d.DeviceId, Effects.Render(Profile, d, context), life.Token);
-                            foreach (var d in Profile.Layout.Where(p => extensionRgb.ContainsKey(p.DeviceId)).ToList())
-                            {
-                                var adapter = extensionRgb[d.DeviceId];
-                                await adapter.Controller.WriteAsync(adapter.Native, Effects.Render(Profile, d, context), life.Token);
-                            }
+                            Rgb[] frame;
+                            if (identifying && d.DeviceId == identifyId)
+                                frame = Enumerable.Repeat(flashOn ? new MkRgb.Core.Rgb(255, 255, 255) : MkRgb.Core.Rgb.Black, Math.Max(1, d.LedCount)).ToArray();
+                            else if (LightingEnabled || (identifyEnded && d.DeviceId == identifyId))
+                                frame = Effects.Render(Profile, d, context); // After identifying, put the device back to its chosen look.
+                            else
+                                continue;
+                            if (extensionRgb.TryGetValue(d.DeviceId, out var adapter))
+                                await adapter.Controller.WriteAsync(adapter.Native, frame, life.Token);
+                            else
+                                await Rgb.WriteAsync(d.DeviceId, frame, life.Token);
                         }
+                        if (identifyEnded)
+                            identifyId = null;
                     }
                     finally { rgbConnection.Release(); }
                 }
                 if (System.Windows.Application.Current.MainWindow?.WindowState != WindowState.Minimized && System.Windows.Application.Current.MainWindow?.IsVisible == true)
                     Frame?.Invoke();
             }
-            catch (Exception e) { LightingEnabled = false; Status = "Lighting paused: " + e.Message; Changed(nameof(LightingEnabled)); }
+            catch (OperationCanceledException) when (life.IsCancellationRequested) { break; }
+            catch (Exception e) { LightingEnabled = false; identifyId = null; Status = "Lighting paused: " + e.Message; Changed(nameof(LightingEnabled)); }
             try
             {
                 await Task.Delay(1000 / Math.Clamp(Settings.Fps, 1, 60), life.Token);
@@ -584,7 +709,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
             throw new InvalidOperationException("Compiled extensions require an administrator-reviewed installation. See the extension guide.");
         if (item.File.Contains("..") || item.File.StartsWith('/') || item.File.Contains(':'))
             throw new InvalidDataException("Invalid catalog path.");
-        var local = Path.Combine(AppContext.BaseDirectory, "catalog", item.File);
+        var local = Path.Combine(AppContext.BaseDirectory, "catalog", item.File.Replace('/', Path.DirectorySeparatorChar));
         byte[] bytes;
         if (File.Exists(local))
             bytes = await File.ReadAllBytesAsync(local);

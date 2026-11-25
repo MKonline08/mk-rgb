@@ -6,7 +6,7 @@ namespace MkRgb.Hardware;
 
 public sealed class Sensors : ISensorProvider, IFanController, IDisposable
 {
-    readonly Computer computer = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true, IsMemoryEnabled = true, IsControllerEnabled = true, IsStorageEnabled = true };
+    readonly Computer computer = new() { IsCpuEnabled = true, IsGpuEnabled = true, IsMotherboardEnabled = true, IsMemoryEnabled = true, IsControllerEnabled = true, IsStorageEnabled = true, IsPsuEnabled = true, IsBatteryEnabled = true };
     readonly Dictionary<string, IControl> controls = []; readonly Dictionary<string, IControl> owned = [];
     readonly object sync = new(); bool opened; string? openError;
     public Sensors()
