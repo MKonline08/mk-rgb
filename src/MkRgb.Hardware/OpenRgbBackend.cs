@@ -22,7 +22,7 @@ public sealed class OpenRgbBackend(string executable, string configuration) : IA
             if (conflicts.Count > 0)
                 warnings.Add("Other RGB software is running (" + string.Join(", ", conflicts) + "). It can hide devices from MK RGB; close it and press Find devices again if something is missing.");
             if (!PawnIoInstalled())
-                warnings.Add("The PawnIO driver is not installed, so RAM and some motherboard RGB cannot be detected. Install it from pawnio.eu, then restart your PC.");
+                warnings.Add("The PawnIO driver is not installed, so RAM and some motherboard RGB cannot be detected. Press Install PawnIO on the Devices page (or rerun the MK RGB Setup EXE), then restart your PC.");
             if (await Listening(token)) return warnings;
             if (process is null || process.HasExited)
             {

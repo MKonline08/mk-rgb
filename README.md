@@ -23,7 +23,7 @@ Run the Setup EXE and everything is installed for you: the app, the hardware ser
 
 ## Run
 
-Windows 11 x64 is the target. Run **MK-RGB-0.1.2-Setup.exe** to install the self-contained app and hardware service. The installed program is **MK RGB.exe**. An MSI is also provided for managed deployments. Start **MK RGB** from the Start menu. In Lighting, pick a color and press **Apply to all devices**; connection, output, and saving happen together. **Find / refresh devices** discovers controllers without enabling output. Configure passive fans/strips in Devices once. Commission each fan mapping in Cooling before enabling a cooling policy.
+Windows 11 x64 is the target. Run **MK-RGB-0.1.3-Setup.exe** to install the self-contained app and hardware service. The installed program is **MK RGB.exe**. An MSI is also provided for managed deployments. Start **MK RGB** from the Start menu. In Lighting, pick a color and press **Apply to all devices**; connection, output, and saving happen together. **Find / refresh devices** discovers controllers without enabling output. Configure passive fans/strips in Devices once. Commission each fan mapping in Cooling before enabling a cooling policy.
 
 RAM lighting, many motherboard lighting chips, and CPU temperatures need the signed [PawnIO](https://pawnio.eu) driver. The Setup EXE installs it automatically (it is skipped if you already have it). If it is ever missing, the Devices page has a one-click **Install PawnIO** button; restart afterwards and press **Find devices**.
 

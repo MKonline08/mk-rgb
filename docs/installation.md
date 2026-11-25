@@ -1,6 +1,6 @@
 # Installation and recovery
 
-Download **MK-RGB-0.1.2-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
+Download **MK-RGB-0.1.3-Setup.exe** from the repository's Releases page and compare its SHA-256 with `SHA256SUMS.txt`. Initial builds are unsigned. This preview has not completed the full physical-hardware and clean-VM acceptance matrix.
 
 The EXE installer contains the MSI and installs the .NET runtime with MK RGB, the `MkRgbHardware` Windows service, and a pinned OpenRGB backend under `Program Files/MK RGB`. It creates a Start-menu shortcut. Administrative installation is required for the service. The installing user, administrators, and SYSTEM can access the named pipe. Other Windows users cannot control that installation through the app's pipe.
 
