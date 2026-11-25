@@ -1,4 +1,4 @@
-param([Parameter(Mandatory)][string]$Msi, [Parameter(Mandatory)][string]$PawnIO, [string]$Wix = 'wix', [string]$Version = '0.1.2', [string]$PawnIOVersion = '2.2.0.0')
+param([Parameter(Mandatory)][string]$Msi, [Parameter(Mandatory)][string]$PawnIO, [string]$Wix = 'wix', [string]$Version = '0.1.3', [string]$PawnIOVersion = '2.2.0.0')
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 $msiFile = (Resolve-Path -LiteralPath $Msi).Path

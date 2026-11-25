@@ -27,6 +27,7 @@ public partial class MainWindow : Window
         vm.PropertyChanged += (_, e) => { if (e.PropertyName is "" or null or nameof(MainViewModel.RgbStatus) or nameof(MainViewModel.ServiceStatus) or nameof(MainViewModel.Scanning)) UpdateIndicators(); };
         Loaded += (_, _) => { Render(); vm.Start(); SetupTray(); var handle = new WindowInteropHelper(this).Handle; HwndSource.FromHwnd(handle)?.AddHook(Hook); RegisterHotKey(handle, 1, 0x0002 | 0x0001, 0x4D); if (vm.Settings.StartInTray || Environment.GetCommandLineArgs().Contains("--background")) Hide(); };
         Closing += OnClosing;
+        VersionText.Text = $"v{App.VersionLabel} \u00B7 preview";
         SourceInitialized += (_, _) => DarkFrame();
         StateChanged += (_, _) => FitMaximized();
         Loaded += (_, _) => StartAmbientAnimations();

@@ -5,6 +5,8 @@ namespace MkRgb.Desktop;
 
 public partial class App : System.Windows.Application
 {
+    /// <summary>"0.1.3" style version from the build (Directory.Build.props), shown in the UI.</summary>
+    public static string VersionLabel { get; } = typeof(App).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "dev";
     Mutex? instance;
     protected override void OnStartup(StartupEventArgs e)
     {

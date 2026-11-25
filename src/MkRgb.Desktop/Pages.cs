@@ -438,7 +438,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
                 Action("Export current profile", () => { if (SavePath(vm.Profile.Name + ".json", "Profile|*.json") is { } path) vm.Export(path); })),
             Text("Imported cooling settings stay off until you map them to this PC. The previous settings file is kept as a .bak file.", 12, "#8E99A2")));
         var about = Card(Stack(Label("About"),
-            Text("MK RGB 0.1.2 · GPLv3. OpenRGB and LibreHardwareMonitor keep their own licenses. No account needed.", 12.5, "#B4BEC5"),
+            Text($"MK RGB {App.VersionLabel} · GPLv3. OpenRGB and LibreHardwareMonitor keep their own licenses. No account needed.", 12.5, "#B4BEC5"),
             Row(Button("Check for updates", vm.CheckUpdates), Action("Releases", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/releases")), Action("Source code", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb")), Action("Compatibility guide", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/blob/main/docs/compatibility.md")), Action("Exit MK RGB", window.ExitApp))));
         return Columns(Stack(startup, appearance), Stack(service, profiles, about), 1, 1);
     }

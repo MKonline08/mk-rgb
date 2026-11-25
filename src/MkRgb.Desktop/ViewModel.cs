@@ -730,7 +730,7 @@ public sealed class MainViewModel : Observable, IAsyncDisposable
     public async Task CheckUpdates()
     {
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("MK-RGB/0.1.2");
+        http.DefaultRequestHeaders.UserAgent.ParseAdd("MK-RGB/" + App.VersionLabel);
         using var response = await http.GetAsync("https://api.github.com/repos/MKonline08/mk-rgb/releases/latest");
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {

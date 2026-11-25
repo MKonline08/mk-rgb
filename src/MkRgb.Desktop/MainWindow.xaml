@@ -45,7 +45,7 @@
        <TextBlock Text="{Binding RgbStatus}" FontSize="12"/>
       </StackPanel>
       <StackPanel Orientation="Horizontal" Margin="0,0,0,8"><Ellipse x:Name="ServiceDot" Width="8" Height="8" Fill="{StaticResource Muted}" Margin="0,0,8,0" VerticalAlignment="Center"/><TextBlock Text="{Binding ServiceStatus}" FontSize="12"/></StackPanel>
-      <TextBlock Text="v0.1.2 &#183; preview" FontSize="10" Foreground="#6F7A83"/>
+      <TextBlock x:Name="VersionText" FontSize="10" Foreground="#6F7A83"/>
      </StackPanel>
     </Border>
 
