@@ -15,6 +15,13 @@ public static class Effects
             var radians = device.Rotation * Math.PI / 180;
             var x = (device.X + Math.Cos(radians) * local * device.Width) / 1000;
             var y = (device.Y + Math.Sin(radians) * local * device.Width) / 600;
+            if (device.Lighting != null)
+            {
+                // Quick lighting runs the whole effect along each device (a full rainbow on every fan),
+                // instead of showing the small slice of the layout canvas the device happens to cover.
+                x = local;
+                y = 0.5;
+            }
             var color = Rgb.Black;
             foreach (var layer in layers)
             {

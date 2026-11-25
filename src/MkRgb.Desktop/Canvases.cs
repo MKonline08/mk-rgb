@@ -79,6 +79,14 @@ public sealed class SetupCanvas : SKElement
                 using var led = new SKPaint { Color = new(rgb.R, rgb.G, rgb.B), IsAntialias = true };
                 c.DrawRoundRect(i * step, 0, Math.Max(2, step - 3), (float)p.Height, 3, 3, led);
             }
+            c.Restore();
+        }
+        // Names go on top in a second pass so a neighbouring device never covers them.
+        foreach (var p in vm.Profile.Layout)
+        {
+            c.Save();
+            c.Translate((float)p.X, (float)p.Y);
+            c.RotateDegrees((float)p.Rotation);
             c.DrawText(p.Name, 0, (float)p.Height + 30, SKTextAlign.Left, font, muted);
             c.Restore();
         }

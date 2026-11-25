@@ -2,7 +2,9 @@ namespace MkRgb.Core;
 
 public sealed class CoolingEngine
 {
-    readonly Dictionary<string, (double Temp, double Duty, DateTimeOffset At)> state = [];
+    // Reference is the temperature at which Target was last accepted; hysteresis is measured against it,
+    // not against the previous tick, so slow cooling still lowers the fan once it passes the band.
+    readonly Dictionary<string, (double Reference, double Target, double Duty, DateTimeOffset At)> state = [];
     public static double Interpolate(IReadOnlyList<CurvePoint> points, double temperature)
     {
         if (points.Count < 2 || points.Any(p => !double.IsFinite(p.Temperature) || !double.IsFinite(p.Duty) || p.Duty < 0 || p.Duty > 100))
@@ -22,19 +24,25 @@ public sealed class CoolingEngine
         var readings = p.Sources.Select(s => sensors.FirstOrDefault(r => r.Id == s.SensorId)).ToArray();
         // Manual operation also needs mapped temperature guards. Stale data bypasses all ramp limits.
         if (readings.Length == 0 || readings.Any(s => s is null || !s.IsFresh(now)))
-            return Remember(100, 100);
+            return Remember(100, 100, 100);
         var temp = readings.Max(s => s!.Value!.Value);
         var curve = p.Sources.Select((s, i) => Interpolate(s.Points, readings[i]!.Value!.Value)).ToArray();
         if (curve.Any(d => d >= 100))
-            return Remember(temp, 100);
+            return Remember(temp, 100, 100);
         var target = p.Manual ? Math.Clamp(p.ManualDuty, 0, 100) : p.MixTemperatures ? Interpolate(p.Sources[0].Points, p.Mix == MixMode.Maximum ? temp : readings.Average(s => s!.Value!.Value)) : p.Mix == MixMode.Maximum ? curve.Max() : curve.Average();
         if (p.Pump || !p.AllowStop || !p.Calibrated || target > 0)
             target = Math.Max(p.Minimum, target);
-        var stopping = target == 0;
-        if (state.TryGetValue(p.ChannelId, out var old))
+        var reference = temp;
+        if (state.TryGetValue(p.ChannelId, out var old) && target < old.Target && old.Reference - temp < p.Hysteresis)
         {
-            if (target < old.Duty && Math.Abs(temp - old.Temp) < p.Hysteresis)
-                target = old.Duty;
+            // Still inside the hysteresis band: keep the previous goal and its reference temperature.
+            target = old.Target;
+            reference = old.Reference;
+        }
+        var goal = target;
+        var stopping = target == 0;
+        if (state.ContainsKey(p.ChannelId))
+        {
             var elapsed = Math.Clamp((now - old.At).TotalSeconds, 0, 5);
             target = Math.Clamp(target, old.Duty - Math.Max(0, p.FallPerSecond) * elapsed, old.Duty + Math.Max(0, p.RisePerSecond) * elapsed);
             if (old.Duty == 0 && target > 0)
@@ -44,10 +52,10 @@ public sealed class CoolingEngine
             target = Math.Max(p.StartDuty, target);
         if (target > 0 && target < p.Minimum)
             target = stopping ? 0 : p.Minimum;
-        return Remember(temp, Math.Clamp(target, 0, 100));
-        double Remember(double t, double duty)
+        return Remember(reference, goal, Math.Clamp(target, 0, 100));
+        double Remember(double t, double desired, double duty)
         {
-            state[p.ChannelId] = (t, duty, now);
+            state[p.ChannelId] = (t, desired, duty, now);
             return duty;
         }
     }

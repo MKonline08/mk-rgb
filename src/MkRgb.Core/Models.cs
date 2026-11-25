@@ -184,7 +184,8 @@ public record Settings
     public Dictionary<string, Dictionary<string, int>> RgbZoneCounts { get; set; } = [];
     public bool StartWithWindows { get; set; }
     public bool StartInTray { get; set; }
-    public bool ConnectRgbOnLaunch { get; set; }
+    // On by default so a fresh install finds lighting hardware without any setup.
+    public bool ConnectRgbOnLaunch { get; set; } = true;
     public bool EnableLightingOnLaunch { get; set; }
     public bool CloseRgbAppsOnConnect { get; set; }
     public int Version { get; set; } = 1; public string ActiveProfileId { get; set; } = "";
@@ -192,6 +193,7 @@ public record Settings
     public List<AlertRule> Alerts { get; set; } = []; public Dictionary<string, string> SensorNames { get; set; } = [];
     public List<string> PinnedSensors { get; set; } = [];
     public Dictionary<string, string> InstalledCatalogVersions { get; set; } = [];
+    public List<string> RecentColors { get; set; } = [];
     public bool Fahrenheit
     {
         get; set;

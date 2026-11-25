@@ -25,9 +25,9 @@
     "File": "LibreHardwareMonitor-0.9.6.tar.gz"
   },
   {
-    "Sha256": "f3e51e415fb00b8a84dbdb4e89c1c85100a9608e0c581a3fd00889dd19b4a7ce",
-    "Url": "https://github.com/namazso/PawnIO/archive/9d52965895588b0ffa3703b72eec75ba19f4ccc0.tar.gz",
-    "File": "PawnIO-source.tar.gz"
+    "Sha256": "680272355562e3f3b450c4be78e33863ebb2b7811356c28cb032dc7e6ddf44f7",
+    "Url": "https://github.com/namazso/PawnIO/archive/refs/tags/2.2.0.tar.gz",
+    "File": "PawnIO-2.2.0-source.tar.gz"
   },
   {
     "Sha256": "c3c303502268cfdc7616983ca8eba0c348d0ba91993cee4a8a6c283604c24822",

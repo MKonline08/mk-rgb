@@ -30,7 +30,17 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
             p.Children.Add(c);
         return p;
     }
-    static Border Card(UIElement child) => new() { Child = child, Background = Brush("#191C1F"), BorderBrush = Brush("#30363A"), BorderThickness = new(1), CornerRadius = new(7), Padding = new(20), Margin = new(0, 0, 0, 18) };
+    /// <summary>Grey placeholder text shown inside an empty text box.</summary>
+    static FrameworkElement WithHint(TextBox box, string hint)
+    {
+        var label = new TextBlock { Text = hint, Foreground = Brush("#6F7A83"), IsHitTestVisible = false, VerticalAlignment = VerticalAlignment.Center, Margin = new(12, 4, 0, 10) };
+        box.TextChanged += (_, _) => label.Visibility = box.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var grid = new System.Windows.Controls.Grid { HorizontalAlignment = HorizontalAlignment.Left };
+        grid.Children.Add(box);
+        grid.Children.Add(label);
+        return grid;
+    }
+    static Border Card(UIElement child) => new() { Child = child, Background = Brush("#191C1F"), BorderBrush = Brush("#30363A"), BorderThickness = new(1), CornerRadius = new(10), Padding = new(20), Margin = new(0, 0, 0, 18) };
     static FrameworkElement Columns(UIElement left, UIElement right, double leftWeight = 2, double rightWeight = 1)
     {
         var g = new Grid();
@@ -67,7 +77,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
         box.SetBinding(TextBox.TextProperty, Bind(source, path));
         box.GotKeyboardFocus += (_, _) => vm.Record();
         System.Windows.Automation.AutomationProperties.SetName(box, title);
-        return new StackPanel { Width = width, Children = { Text(title, 11, "#959FA7"), box } };
+        return new StackPanel { Width = width, HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0, 0, 12, 0), Children = { Text(title, 11, "#959FA7"), box } };
     }
     FrameworkElement Choice(string title, object source, string path, IEnumerable items, string? display = null, string? value = null, double width = 190)
     {
@@ -76,7 +86,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
         box.PreviewMouseLeftButtonDown += (_, _) => vm.Record();
         box.PreviewKeyDown += (_, _) => vm.Record();
         System.Windows.Automation.AutomationProperties.SetName(box, title);
-        return new StackPanel { Width = width, Children = { Text(title, 11, "#959FA7"), box } };
+        return new StackPanel { Width = width, HorizontalAlignment = HorizontalAlignment.Left, Margin = new(0, 0, 12, 0), Children = { Text(title, 11, "#959FA7"), box } };
     }
     CheckBox Check(string title, object source, string path)
     {
@@ -98,7 +108,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
         var d = new SaveFileDialog { FileName = name, Filter = filter };
         return d.ShowDialog(window) == true ? d.FileName : null;
     }
-    public UIElement Build(string page) => page switch { "Lighting" => Lighting(), "Devices" => DeviceSetup(), "Advanced" => AdvancedTools(), "Layout" => AdvancedLayout(), "Studio" => Studio(), "Cooling" => Cooling(), "Monitoring" => Monitoring(), "Automations" => Automation(), "Presets" or "Library" => Library(), "Settings" => Settings(), _ => Overview() };
+    public UIElement Build(string page) => page switch { "Lighting" => Lighting(), "Devices" => DeviceSetup(), "Layout" => AdvancedLayout(), "Studio" => Studio(), "Cooling" => Cooling(), "Monitoring" => Monitoring(), "Automations" => Automation(), "Presets" or "Library" => Library(), "Settings" => Settings(), _ => Overview() };
     FrameworkElement Metric(string label, string property, string detail)
     {
         var value = Text("", 28);
@@ -114,7 +124,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
             metrics.Children.Add(c);
         }
         var canvas = Card(Stack(Row(Text("Your lighting space", 17)), new SetupCanvas(vm), Row(Button("Connect RGB", vm.ConnectRgb, true), Action("Add preview device", vm.AddVirtual))));
-        var active = Card(Stack(Text("Active composition", 17), Text(vm.Profile.Name, 24, "#78E8C2"), Text($"{vm.Profile.Layers.Count} layers · {vm.Profile.Layout.Count} mapped devices", 12, "#959FA7"), Text("Color moves across your entire layout. Open Studio to shape the motion, timing, and response.", 13, "#AEB8BD"), Action("Open Studio", () => window.Go("Studio")), Text("OUTPUT", 10, "#959FA7"), Check("Send lighting to connected devices", vm, nameof(vm.LightingEnabled)), Text("Preview devices are virtual and send no hardware commands.", 11, "#959FA7"), Action("Open cooling", () => window.Go("Cooling"))));
+        var active = Card(Stack(Text("Active composition", 17), Text(vm.Profile.Name, 24, "#78E8C2"), Text($"{vm.Profile.Layers.Count} layer{(vm.Profile.Layers.Count == 1 ? "" : "s")} · {vm.Profile.Layout.Count} mapped device{(vm.Profile.Layout.Count == 1 ? "" : "s")}", 12, "#959FA7"), Text("Color moves across your entire layout. Open Studio to shape the motion, timing, and response.", 13, "#AEB8BD"), Action("Open Studio", () => window.Go("Studio")), Text("Use the Lighting switch at the top to send this to your devices. Preview devices are virtual and send no hardware commands.", 12, "#959FA7"), Action("Open cooling", () => window.Go("Cooling"))));
         var devices = Grid(vm.Devices, ("DEVICE", "Name"), ("BACKEND / TYPE", "Vendor"), ("CAPABILITIES", "Capabilities"), ("STATUS", "Status"));
         var dashboard = new WrapPanel();
         foreach (var id in vm.Settings.PinnedSensors)
@@ -136,7 +146,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
             dashboard.Children.Add(panel);
         }
 
-        return Stack(Text("System overview", 28), Text("Lighting, thermals, and control for your setup.", 13, "#959FA7"), metrics, dashboard, Columns(canvas, active), Card(Stack(Text("Connected hardware", 17), devices)), Card(Stack(Text("Setup checklist", 17), Text("1   Install the hardware service for privileged sensors and cooling.\n2   Connect RGB and identify each physical device.\n3   Map fan RPM and temperature sources before commissioning.\n4   Save a profile and enable the outputs you want.", 13, "#AEB8BD"), Row(Action("Settings & diagnostics", () => window.Go("Settings")), Action("View monitoring", () => window.Go("Monitoring"))))));
+        return Stack(CpuHint(), metrics, dashboard, Columns(canvas, active), Card(Stack(Text("Connected hardware", 17), devices)), Card(Stack(Text("Setup checklist", 17), Text("1   Install the hardware service for privileged sensors and cooling.\n2   Connect RGB and identify each physical device.\n3   Map fan RPM and temperature sources before commissioning.\n4   Save a profile and enable the outputs you want.", 13, "#AEB8BD"), Row(Action("Settings & diagnostics", () => window.Go("Settings")), Action("View monitoring", () => window.Go("Monitoring"))))));
     }
     UIElement LedEditor(Placement placement)
     {
@@ -197,12 +207,11 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
                 var count = new TextBox { Text = z.Count.ToString(), Width = 90 };
                 zones.Children.Add(Row(Text(d.Name + " / " + z.Name, 12), count, Button("Save header", async () => { if (!z.Resizable) throw new InvalidOperationException("This zone has a fixed size."); await vm.ConfigureRgbZone(d.Id, z, int.Parse(count.Text)); })));
             }
-        return Stack(Text("Device layout", 28), Text("Drag devices into position. Effects follow their spatial coordinates.", 13, "#959FA7"), Row(Button("Connect / refresh RGB", vm.ConnectRgb, true), Action("Add preview device", vm.AddVirtual), Action("Undo", vm.Undo), Action("Redo", vm.Redo), Check("Lighting output", vm, nameof(vm.LightingEnabled))), Columns(Card(canvas), inspector), Card(Stack(Text("RGB channels", 17), zones, Text("ARGB headers showing 0 LEDs will stay dark. Set each attached header to its actual LED count, then select Resize channel. Leave unused headers at 0.", 12, "#959FA7"))));
+        return Stack(Text("Drag devices into position. Effects follow their spatial coordinates.", 13, "#959FA7"), Row(Button("Connect / refresh RGB", vm.ConnectRgb, true), Action("Add preview device", vm.AddVirtual), Action("Undo", vm.Undo), Action("Redo", vm.Redo), Check("Lighting output", vm, nameof(vm.LightingEnabled))), Columns(Card(canvas), inspector), Card(Stack(Text("RGB channels", 17), zones, Text("ARGB headers showing 0 LEDs will stay dark. Set each attached header to its actual LED count, then select Resize channel. Leave unused headers at 0.", 12, "#959FA7"))));
     }
     UIElement Studio()
     {
         var root = new StackPanel();
-        root.Children.Add(Text("Effect studio", 28));
         if (vm.Profile.Layout.Any(d => d.Lighting != null))
             root.Children.Add(Card(Stack(Text("Quick lighting is active", 17), Text("Switch devices back to this composition before editing advanced layers.", 12, "#959FA7"), Action("Use studio composition on all devices", () => { vm.Record(); foreach (var d in vm.Profile.Layout) { d.Lighting = null; d.LedOverrides.Clear(); } vm.Save(); vm.RefreshProfile(); }))));
         root.Children.Add(Text("Layers, keyframes, and signal-driven effects in one workspace.", 13, "#959FA7"));
@@ -258,7 +267,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
                 };
                 vm.Profile.Fans.Add(policy);
             }
-            var p = policy; var templates = new ComboBox { ItemsSource = vm.Profile.Fans.Where(f => string.IsNullOrEmpty(f.ChannelId)).ToList(), DisplayMemberPath = "Mix", Width = 180 };
+            var p = policy; var templates = new ComboBox { ItemsSource = vm.Profile.Fans.Where(f => string.IsNullOrEmpty(f.ChannelId)).ToList(), DisplayMemberPath = "Mix", Width = 220, HorizontalAlignment = HorizontalAlignment.Left };
             if (p.Sources.Count == 0)
                 p.Sources.Add(new());
             var source = p.Sources[0];
@@ -268,12 +277,12 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
             points = new DataGrid { ItemsSource = new ObservableCollection<EditablePoint>(source.Points.Select(p => new EditablePoint(p))), Height = 160, IsReadOnly = false };
             EditColumn(points, "TEMPERATURE °C", "Temperature");
             EditColumn(points, "DUTY %", "Duty");
-            var presets = new ComboBox { ItemsSource = new[] { "Quiet", "Balanced", "Gaming", "Maximum Cooling" }, SelectedIndex = 1, Width = 190 };
+            var presets = new ComboBox { ItemsSource = new[] { "Quiet", "Balanced", "Gaming", "Maximum Cooling" }, SelectedIndex = 1, Width = 220, HorizontalAlignment = HorizontalAlignment.Left };
             presets.SelectionChanged += (_, _) => { source.Points = CoolingEngine.Preset((string)presets.SelectedItem); points.ItemsSource = new ObservableCollection<EditablePoint>(source.Points.Select(p => new EditablePoint(p))); curve.InvalidateVisual(); };
             var sourceGrid = new DataGrid { ItemsSource = new ObservableCollection<CurveSource>(p.Sources), Height = 130, IsReadOnly = false };
             sourceGrid.Columns.Add(new DataGridComboBoxColumn { Header = "TEMPERATURE SOURCE", ItemsSource = vm.Sensors.Where(s => s.Sample.Kind == SensorKind.Temperature).ToList(), DisplayMemberPath = "Name", SelectedValuePath = "Id", SelectedValueBinding = new Binding("SensorId"), Width = new(1, DataGridLengthUnitType.Star) });
             sourceGrid.SelectionChanged += (_, _) => { if (sourceGrid.SelectedItem is CurveSource selected) { source = selected; points.ItemsSource = new ObservableCollection<EditablePoint>(source.Points.Select(p => new EditablePoint(p))); curve.InvalidateVisual(); } };
-            body.Content = Stack(Card(Stack(Text(channel.Name, 22), Row(Text("Imported cooling template", 12), templates, Action("Map imported settings", () => { if (templates.SelectedItem is not FanPolicy template) throw new InvalidOperationException("Import a profile with cooling settings first."); vm.Record(); var mapped = Json.Clone(template); mapped.ChannelId = channel.Id; mapped.Enabled = false; mapped.Calibrated = false; mapped.AllowStop = false; mapped.Pump = channel.Pump; vm.Profile.Fans.Remove(p); vm.Profile.Fans.Add(mapped); Fan(); })), Text(channel.Evidence, 12, "#959FA7"), Text("Confirm the physical fan and RPM mapping before commissioning. The sweep stays between 30% and 100%; pumps stay at or above 70%. Firmware control is restored when the sweep ends.", 13, "#AEB8BD"), Row(Choice("Guard temperature", source, "SensorId", vm.Sensors.Where(s => s.Sample.Kind == SensorKind.Temperature).ToList(), "Name", "Id", 290), Stack(Text("RPM feedback", 11, "#959FA7"), selectedRpm), Check("This is a pump", p, "Pump"), stopTest), Button("Commission this channel", async () =>
+            body.Content = Stack(Card(Stack(Text(channel.Name, 22), Row(Stack(Text("Imported cooling template", 11, "#959FA7"), templates), Action("Map imported settings", () => { if (templates.SelectedItem is not FanPolicy template) throw new InvalidOperationException("Import a profile with cooling settings first."); vm.Record(); var mapped = Json.Clone(template); mapped.ChannelId = channel.Id; mapped.Enabled = false; mapped.Calibrated = false; mapped.AllowStop = false; mapped.Pump = channel.Pump; vm.Profile.Fans.Remove(p); vm.Profile.Fans.Add(mapped); Fan(); })), Text(channel.Evidence, 12, "#959FA7"), Text("Confirm the physical fan and RPM mapping before commissioning. The sweep stays between 30% and 100%; pumps stay at or above 70%. Firmware control is restored when the sweep ends.", 13, "#AEB8BD"), Row(Choice("Guard temperature", source, "SensorId", vm.Sensors.Where(s => s.Sample.Kind == SensorKind.Temperature).ToList(), "Name", "Id", 290), Stack(Text("RPM feedback", 11, "#959FA7"), selectedRpm), Check("This is a pump", p, "Pump"), stopTest), Button("Commission this channel", async () =>
             {
                 if (System.Windows.MessageBox.Show(window, "This will change this channel's speed for about 20 seconds. Confirm you have identified the physical fan/pump, RPM sensor, and temperature guard. Continue?", "Commission cooling channel", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                     return;
@@ -283,14 +292,14 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
                 p.Calibrated = true;
                 p.AllowStop = result.CanStop;
                 vm.Status = $"Commissioned. Minimum {result.Minimum}% · start {result.StartDuty}%.";
-            }, true))), Columns(Card(Stack(Text("Fan response", 17), presets, curve, points, Row(Action("Use edited points", () => { points.CommitEdit(); source.Points = ((ObservableCollection<EditablePoint>)points.ItemsSource).Select(p => new CurvePoint(p.Temperature, p.Duty)).OrderBy(p => p.Temperature).ToList(); _ = CoolingEngine.Interpolate(source.Points, 50); curve.InvalidateVisual(); }), Action("Add point", () => ((ObservableCollection<EditablePoint>)points.ItemsSource).Add(new(new(60, 60))))))), Card(Stack(Text("Response behavior", 17), Check("Enable this policy", p, "Enabled"), Check("Manual duty (temperature guard stays active)", p, "Manual"), Field("Manual duty %", p, "ManualDuty"), Field("Minimum duty %", p, "Minimum"), Field("Starting duty %", p, "StartDuty"), Field("Rise % / second", p, "RisePerSecond"), Field("Fall % / second", p, "FallPerSecond"), Field("Hysteresis °C", p, "Hysteresis"), Check("Allow validated fan stop", p, "AllowStop")))), Card(Stack(Text("Mix temperature sources", 17), sourceGrid, Row(Choice("Mix function", p, "Mix", Enum.GetValues<MixMode>()), Check("Mix temperatures before applying first curve", p, "MixTemperatures"), Action("Add source", () => { var s = new CurveSource { Points = source.Points.ToList() }; p.Sources.Add(s); ((ObservableCollection<CurveSource>)sourceGrid.ItemsSource).Add(s); })), Action("Remove selected source", () => { if (sourceGrid.SelectedItem is CurveSource selected && p.Sources.Count > 1) { p.Sources.Remove(selected); ((ObservableCollection<CurveSource>)sourceGrid.ItemsSource).Remove(selected); sourceGrid.SelectedIndex = 0; } }), Text("Select a source row to edit its independent response curve. Composite mode uses the first curve after mixing temperatures.", 12, "#959FA7"))), Row(Button("Apply cooling policies", vm.ApplyCooling, true), Button("Restore firmware control", vm.RestoreCooling)));
+            }, true))), Columns(Card(Stack(Text("Fan response", 17), Text("Start from a preset, then drag points on the curve.", 12, "#959FA7"), presets, curve, points, Row(Action("Use edited points", () => { points.CommitEdit(); source.Points = ((ObservableCollection<EditablePoint>)points.ItemsSource).Select(p => new CurvePoint(p.Temperature, p.Duty)).OrderBy(p => p.Temperature).ToList(); _ = CoolingEngine.Interpolate(source.Points, 50); curve.InvalidateVisual(); }), Action("Add point", () => ((ObservableCollection<EditablePoint>)points.ItemsSource).Add(new(new(60, 60))))))), Card(Stack(Text("Response behavior", 17), Check("Enable this policy", p, "Enabled"), Check("Manual duty (temperature guard stays active)", p, "Manual"), Field("Manual duty %", p, "ManualDuty"), Field("Minimum duty %", p, "Minimum"), Field("Starting duty %", p, "StartDuty"), Field("Rise % / second", p, "RisePerSecond"), Field("Fall % / second", p, "FallPerSecond"), Field("Hysteresis °C", p, "Hysteresis"), Check("Allow validated fan stop", p, "AllowStop")))), Card(Stack(Text("Mix temperature sources", 17), sourceGrid, Row(Choice("Mix function", p, "Mix", Enum.GetValues<MixMode>()), Check("Mix temperatures before applying first curve", p, "MixTemperatures"), Action("Add source", () => { var s = new CurveSource { Points = source.Points.ToList() }; p.Sources.Add(s); ((ObservableCollection<CurveSource>)sourceGrid.ItemsSource).Add(s); })), Action("Remove selected source", () => { if (sourceGrid.SelectedItem is CurveSource selected && p.Sources.Count > 1) { p.Sources.Remove(selected); ((ObservableCollection<CurveSource>)sourceGrid.ItemsSource).Remove(selected); sourceGrid.SelectedIndex = 0; } }), Text("Select a source row to edit its independent response curve. Composite mode uses the first curve after mixing temperatures.", 12, "#959FA7"))), Row(Button("Apply cooling policies", vm.ApplyCooling, true), Button("Restore firmware control", vm.RestoreCooling)));
         }
         selector.SelectionChanged += (_, _) => Fan();
         if (vm.Fans.Count > 0)
             selector.SelectedIndex = 0;
         if (vm.Fans.Count == 0)
             body.Content = Card(Stack(Text("No controllable fan channels available", 19), Text("The hardware service must be installed and able to access a supported controller. Sensor readings alone do not imply fan-write support.", 13, "#959FA7"), Action("Open service setup", () => window.Go("Settings"))));
-        return Stack(Text("Cooling control", 28), Text("Tune the relationship between temperature, airflow, and noise.", 13, "#959FA7"), Row(selector, Action("Undo", vm.Undo), Action("Redo", vm.Redo)), body);
+        return Stack(Row(selector, Action("Undo", vm.Undo), Action("Redo", vm.Redo)), body);
     }
     UIElement Monitoring()
     {
@@ -328,7 +337,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
         timer.Tick += (_, _) => Draw();
         timer.Start();
         plot.Unloaded += (_, _) => timer.Stop();
-        return Stack(Text("System monitoring", 28), Text("Live readings and seven-day history. Missing sensors remain explicitly unavailable.", 13, "#959FA7"), Row(search, Button("Export history CSV", () => { if (SavePath("mk-rgb-telemetry.csv", "CSV|*.csv") is { } path) vm.ExportTelemetry(path); return Task.CompletedTask; }), Action("Toggle desktop overlay", window.ToggleOverlay)), Card(Stack(grid, Text("¹ Statistics use native sensor units; temperature statistics remain in °C. Values reset when MK RGB starts.", 11, "#959FA7"))), Card(Stack(Row(Text("History", 17), hours, Text("hours", 12, "#959FA7")), plot, inspector)));
+        return Stack(CpuHint(), Row(WithHint(search, "Search sensors…"), Button("Export history CSV", () => { if (SavePath("mk-rgb-telemetry.csv", "CSV|*.csv") is { } path) vm.ExportTelemetry(path); return Task.CompletedTask; }), Action("Toggle desktop overlay", window.ToggleOverlay)), Card(Stack(grid, Text("¹ Statistics use native sensor units; temperature statistics remain in °C. Values reset when MK RGB starts.", 11, "#959FA7"))), Card(Stack(Row(Text("History", 17), hours, Text("hours", 12, "#959FA7")), plot, inspector)));
     }
     UIElement Automation()
     {
@@ -346,7 +355,7 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
         var playlist = new ListBox { Background = Brush("#171C1F"), Foreground = Brush("#EDF0F1"), SelectionMode = SelectionMode.Multiple, ItemsSource = vm.Settings.Profiles, DisplayMemberPath = "Name", Height = 150 };
         foreach (var p in vm.Settings.Profiles.Where(p => vm.Settings.Playlist.Contains(p.Id)))
             playlist.SelectedItems.Add(p);
-        return Stack(Text("Profile automations", 28), Text("Rules activate complete profiles. Higher priorities win; manual switching pauses rules for 15 minutes.", 13, "#959FA7"), Card(Stack(grid, Row(Action("Add rule", () => { var r = new AutomationRule { ProfileId = vm.Profile.Id }; rules.Add(r); vm.Settings.Rules.Add(r); }), Action("Remove rule", () => { if (grid.SelectedItem is AutomationRule r) { rules.Remove(r); vm.Settings.Rules.Remove(r); } }), Action("Save rules", () => { grid.CommitEdit(); vm.Save(); }), Action("Resume automatic switching", () => { vm.ManualUntil = null; vm.Status = "Automation resumed."; })), Text("Application: executable name. Temperature: sensor ID and threshold in °C. Battery: percentage at or below threshold. AC power: 1 plugged in / 0 unplugged. Schedule: local 24-hour time, including overnight intervals.", 12, "#959FA7"))), Columns(Card(Stack(Text("Profile playlist", 17), playlist, Check("Enable playlist when no rule matches", vm.Settings, "PlaylistEnabled"), Field("Seconds per profile", vm.Settings, "PlaylistSeconds"), Action("Save playlist", () => { vm.Settings.Playlist = playlist.SelectedItems.Cast<Profile>().Select(p => p.Id).ToList(); vm.Save(); vm.ManualUntil = null; }))), Card(Stack(Text("CS2 & local events", 17), Text("Health, damage, ammo, and round state become lighting inputs. Configuration is installed only in the folder you select.", 13, "#959FA7"), Check("Enable local event API", vm.Settings, "ApiEnabled"), Button("Apply API setting", vm.RestartApi), Action("Save CS2 integration file", () => { if (SavePath("gamestate_integration_mkrgb.cfg", "CS2 config|*.cfg") is { } path) { File.WriteAllText(path, EventServer.Cs2Config(vm.Settings)); vm.Status = "Save this file in CS2's game/csgo/cfg folder and restart the game."; } }), Action("Copy API token", () => { System.Windows.Clipboard.SetText(vm.Settings.ApiToken); vm.Status = "API token copied. Keep it private."; })))));
+        return Stack(Text("Rules activate complete profiles. Higher priorities win; manual switching pauses rules for 15 minutes.", 13, "#959FA7"), Card(Stack(grid, Row(Action("Add rule", () => { var r = new AutomationRule { ProfileId = vm.Profile.Id }; rules.Add(r); vm.Settings.Rules.Add(r); }), Action("Remove rule", () => { if (grid.SelectedItem is AutomationRule r) { rules.Remove(r); vm.Settings.Rules.Remove(r); } }), Action("Save rules", () => { grid.CommitEdit(); vm.Save(); }), Action("Resume automatic switching", () => { vm.ManualUntil = null; vm.Status = "Automation resumed."; })), Text("Application: executable name. Temperature: sensor ID and threshold in °C. Battery: percentage at or below threshold. AC power: 1 plugged in / 0 unplugged. Schedule: local 24-hour time, including overnight intervals.", 12, "#959FA7"))), Columns(Card(Stack(Text("Profile playlist", 17), playlist, Check("Enable playlist when no rule matches", vm.Settings, "PlaylistEnabled"), Field("Seconds per profile", vm.Settings, "PlaylistSeconds"), Action("Save playlist", () => { vm.Settings.Playlist = playlist.SelectedItems.Cast<Profile>().Select(p => p.Id).ToList(); vm.Save(); vm.ManualUntil = null; }))), Card(Stack(Text("CS2 & local events", 17), Text("Health, damage, ammo, and round state become lighting inputs. Configuration is installed only in the folder you select.", 13, "#959FA7"), Check("Enable local event API", vm.Settings, "ApiEnabled"), Button("Apply API setting", vm.RestartApi), Action("Save CS2 integration file", () => { if (SavePath("gamestate_integration_mkrgb.cfg", "CS2 config|*.cfg") is { } path) { File.WriteAllText(path, EventServer.Cs2Config(vm.Settings)); vm.Status = "Save this file in CS2's game/csgo/cfg folder and restart the game."; } }), Action("Copy API token", () => { System.Windows.Clipboard.SetText(vm.Settings.ApiToken); vm.Status = "API token copied. Keep it private."; })))));
     }
     static UIElement CatalogPreview(CatalogItem item)
     {
@@ -378,12 +387,60 @@ public sealed partial class Pages(MainViewModel vm, MainWindow window)
         vm.Catalog.CollectionChanged += update;
         list.Unloaded += (_, _) => vm.Catalog.CollectionChanged -= update;
         Populate();
-        return Stack(Text("Community library", 28), Text("Reviewed, portable creations. Your downloaded profiles work offline.", 13, "#959FA7"), Row(search, Button("Refresh catalog", vm.LoadCatalog), Action("Import profile", () => { var d = new OpenFileDialog { Filter = "MK RGB profile|*.json" }; if (d.ShowDialog(window) == true) vm.Import(d.FileName); }), Action("Export current profile", () => { if (SavePath(vm.Profile.Name + ".json", "MK RGB profile|*.json") is { } path) vm.Export(path); })), list, Card(Stack(Text("Share your work", 17), Text("Submit effects and profiles through the repository's catalog contribution workflow. Hardware extensions are reviewed code and require an explicit administrator installation.", 13, "#959FA7"), Action("Open contribution guide", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/blob/main/CONTRIBUTING.md")))));
+        return Stack(Row(WithHint(search, "Search presets…"), Button("Refresh catalog", vm.LoadCatalog), Action("Import profile", () => { var d = new OpenFileDialog { Filter = "MK RGB profile|*.json" }; if (d.ShowDialog(window) == true) vm.Import(d.FileName); }), Action("Export current profile", () => { if (SavePath(vm.Profile.Name + ".json", "MK RGB profile|*.json") is { } path) vm.Export(path); })), list, Card(Stack(Text("Share your work", 17), Text("Submit effects and profiles through the repository's catalog contribution workflow. Hardware extensions are reviewed code and require an explicit administrator installation.", 13, "#959FA7"), Action("Open contribution guide", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/blob/main/CONTRIBUTING.md")))));
+    }
+    /// <summary>Explains a missing CPU temperature, which almost always means the PawnIO driver is absent.</summary>
+    UIElement CpuHint()
+    {
+        if (vm.Cpu != "Unavailable" || OpenRgbBackend.PawnIoInstalled())
+            return new Border();
+        return Notice("\uE7BA", "CPU temperature is unavailable", "Reading CPU temperatures (and RAM or motherboard RGB) needs the PawnIO driver, which isn't installed. Install it, restart your PC, and the readings appear here.", true,
+            Button("Install PawnIO", vm.InstallPawnIo, true));
+    }
+    /// <summary>An on/off switch bound to a setting that saves as soon as it is flipped.</summary>
+    CheckBox Toggle(string title, string path, string? note = null)
+    {
+        var content = note is null ? (object)title : Stack(T(title, 13), T(note, 11.5, "#8E99A2"));
+        var box = new CheckBox { Style = Resource("Switch"), Content = content };
+        box.SetBinding(ToggleButton.IsCheckedProperty, new Binding(path) { Source = vm.Settings, Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+        System.Windows.Automation.AutomationProperties.SetName(box, title);
+        void Persist() => _ = vm.Run(() => { vm.SavePreferences(); return Task.CompletedTask; });
+        box.Checked += (_, _) => Persist();
+        box.Unchecked += (_, _) => Persist();
+        return box;
     }
     UIElement Settings()
     {
         var conflicts = Sensors.Conflicts();
-        return Stack(Text("Application settings", 28), Text("Preferences, recovery, and a clear view of what your hardware can do.", 13, "#959FA7"), Columns(Card(Stack(Text("Startup & background", 17), Check("Start MK RGB with Windows", vm.Settings, "StartWithWindows"), Check("Launch hidden in the system tray", vm.Settings, "StartInTray"), Check("Connect RGB when MK RGB starts", vm.Settings, "ConnectRgbOnLaunch"), Check("Enable lighting when MK RGB starts", vm.Settings, "EnableLightingOnLaunch"), Check("Ask competing RGB apps to close when connecting", vm.Settings, "CloseRgbAppsOnConnect"), Button("Close competing RGB apps now", vm.CloseRgbApps), Text("Closing the window keeps MK RGB running in the tray. Fan controllers and background services are never terminated automatically.", 12, "#959FA7"), Text("Appearance & performance", 17), Check("Display temperatures in Fahrenheit", vm.Settings, "Fahrenheit"), Check("Reduce interface motion", vm.Settings, "ReducedMotion"), Choice("Lighting frame rate", vm.Settings, "Fps", new[] { 15, 30, 60 }), Field("Telemetry retention days", vm.Settings, "RetentionDays"), Action("Save preferences", vm.SavePreferences, true), Field("Current profile name", vm.Profile, "Name"), Action("Create a profile", vm.NewProfile))), Card(Stack(Text("Hardware service", 17), Text(vm.Connection, 13, "#78E8C2"), Text("Install the packaged application to register the hardware service. Closing this window leaves cooling policies active in the service. Exiting the tray app stops reactive lighting inputs.", 13, "#A5B1B8"), Text("Conflict scan: " + (conflicts.Count == 0 ? "no known competing controllers found" : string.Join(", ", conflicts)), 12, "#959FA7"), Button("Restore firmware fan control", vm.RestoreCooling), Action("Export diagnostic report", () => { if (SavePath("mk-rgb-diagnostics.json", "JSON|*.json") is { } path) vm.Diagnostics(path); }), Action("Compatibility guide", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/blob/main/docs/compatibility.md"))))), Card(Stack(Text("Profiles & recovery", 17), Row(Action("Back up settings", () => { if (SavePath("mk-rgb-backup.json", "JSON|*.json") is { } path) File.WriteAllText(path, Json.Write(vm.Settings)); }), Action("Restore backup", () => { var d = new OpenFileDialog { Filter = "Settings backup|*.json" }; if (d.ShowDialog(window) != true) return; var incoming = Json.Read<Core.Settings>(File.ReadAllText(d.FileName)); SettingsStore.Validate(incoming); foreach (var p in incoming.Profiles) foreach (var f in p.Fans) { f.Enabled = false; f.Calibrated = false; } new SettingsStore(Paths.UserData).Save(incoming); vm.Status = "Backup restored with fan policies disabled. Exit and restart MK RGB to load it."; }), Action("Export current profile", () => { if (SavePath(vm.Profile.Name + ".json", "Profile|*.json") is { } path) vm.Export(path); })), Text("Imported cooling settings must be mapped to this machine before activation. The previous settings file is kept as a .bak file.", 12, "#959FA7"))), Card(Stack(Text("Updates & open source", 17), Text("MK RGB 0.1.2 · GPLv3\nOpenRGB and LibreHardwareMonitor retain their own licenses. No account is required for core operation.", 13, "#A5B1B8"), Row(Button("Check for updates", vm.CheckUpdates), Action("Open Releases", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/releases")), Action("Source code", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb")), Action("Exit MK RGB", window.ExitApp)))));
+        var fps = Choice("Lighting frame rate", vm.Settings, "Fps", new[] { 15, 30, 60 });
+        var retention = Field("Keep sensor history (days)", vm.Settings, "RetentionDays");
+        var startup = Card(Stack(Label("Startup"),
+            Toggle("Start MK RGB with Windows", "StartWithWindows"),
+            Toggle("Start hidden in the system tray", "StartInTray", "Takes effect the next time MK RGB starts."),
+            Toggle("Find RGB devices when MK RGB starts", "ConnectRgbOnLaunch"),
+            Toggle("Turn lighting on when MK RGB starts", "EnableLightingOnLaunch"),
+            Toggle("Ask other RGB apps to close before scanning", "CloseRgbAppsOnConnect", "Only asks their windows to close; background services are never stopped."),
+            T("Closing the window keeps MK RGB running in the tray. Use Exit in the tray menu to quit.", 12, "#8E99A2")));
+        var appearance = Card(Stack(Label("Appearance & performance"),
+            Toggle("Show temperatures in Fahrenheit", "Fahrenheit"),
+            Toggle("Reduce motion", "ReducedMotion", "Freezes animated previews."),
+            Row(fps, retention),
+            Action("Save these values", vm.SavePreferences, true)));
+        var service = Card(Stack(Label("Hardware service"),
+            Text(vm.Connection, 13, vm.ServiceConnected ? "#78E8C2" : "#FFC86B"),
+            Text("The service owns fan control and privileged sensors. Cooling policies keep running when this window is closed.", 12.5, "#B4BEC5"),
+            Text("Other hardware controllers running: " + (conflicts.Count == 0 ? "none" : string.Join(", ", conflicts)), 12, "#8E99A2"),
+            Row(Button("Restore firmware fan control", vm.RestoreCooling), Action("Export diagnostic report", () => { if (SavePath("mk-rgb-diagnostics.json", "JSON|*.json") is { } path) vm.Diagnostics(path); }))));
+        var profiles = Card(Stack(Label("Profiles & backup"),
+            Row(Field("Current profile name", vm.Profile, "Name", 240), Action("Create a profile", vm.NewProfile)),
+            Row(Action("Back up settings", () => { if (SavePath("mk-rgb-backup.json", "JSON|*.json") is { } path) File.WriteAllText(path, Json.Write(vm.Settings)); }),
+                Action("Restore backup", () => { var d = new OpenFileDialog { Filter = "Settings backup|*.json" }; if (d.ShowDialog(window) != true) return; var incoming = Json.Read<Core.Settings>(File.ReadAllText(d.FileName)); SettingsStore.Validate(incoming); foreach (var p in incoming.Profiles) foreach (var f in p.Fans) { f.Enabled = false; f.Calibrated = false; } new SettingsStore(Paths.UserData).Save(incoming); vm.Status = "Backup restored with fan policies disabled. Exit and restart MK RGB to load it."; }),
+                Action("Export current profile", () => { if (SavePath(vm.Profile.Name + ".json", "Profile|*.json") is { } path) vm.Export(path); })),
+            Text("Imported cooling settings stay off until you map them to this PC. The previous settings file is kept as a .bak file.", 12, "#8E99A2")));
+        var about = Card(Stack(Label("About"),
+            Text("MK RGB 0.1.2 · GPLv3. OpenRGB and LibreHardwareMonitor keep their own licenses. No account needed.", 12.5, "#B4BEC5"),
+            Row(Button("Check for updates", vm.CheckUpdates), Action("Releases", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/releases")), Action("Source code", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb")), Action("Compatibility guide", () => window.OpenUrl("https://github.com/MKonline08/mk-rgb/blob/main/docs/compatibility.md")), Action("Exit MK RGB", window.ExitApp))));
+        return Columns(Stack(startup, appearance), Stack(service, profiles, about), 1, 1);
     }
 }
 public sealed class EditablePoint(CurvePoint p)

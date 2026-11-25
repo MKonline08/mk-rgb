@@ -48,8 +48,11 @@
     "Id": "spectrum",
     "File": "profiles/spectrum.json",
     "PreviewColors": [
-      "#78E8C2",
-      "#6877DB"
+      "#FF2A55",
+      "#FFD000",
+      "#00FF88",
+      "#2F7BFF",
+      "#B44CFF"
     ],
     "Compatibility": "All mapped RGB devices; imports as virtual preview devices. No cooling commands."
   },

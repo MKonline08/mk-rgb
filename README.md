@@ -1,8 +1,10 @@
+<p align="center"><img src="docs/logo.png" width="112" alt="MK RGB logo"></p>
+
 # MK RGB
 
 An open-source Windows studio for lighting, cooling, and hardware monitoring.
 
-Open **Lighting**, pick a color, and press **Apply to all devices**. Use **Devices** to configure attached fans and strips. Layouts, LED painting, timelines, and node graphs are optional tools under **Advanced**.
+Run the Setup EXE and everything is installed for you: the app, the hardware service, the OpenRGB backend, and the PawnIO driver for RAM and motherboard lighting. Then open **Lighting**, pick a color, and press **Apply to all devices**. Use **Devices** to configure attached fans and strips. Layouts, LED painting, timelines, and node graphs are optional tools under **Advanced**.
 
 **Development preview. The complete release acceptance plan is not finished.** Hardware support is capability-based. See [validation](docs/validation.md) for the checks actually performed and remaining work, and [compatibility](docs/compatibility.md) before enabling control.
 
@@ -22,6 +24,8 @@ Open **Lighting**, pick a color, and press **Apply to all devices**. Use **Devic
 ## Run
 
 Windows 11 x64 is the target. Run **MK-RGB-0.1.2-Setup.exe** to install the self-contained app and hardware service. The installed program is **MK RGB.exe**. An MSI is also provided for managed deployments. Start **MK RGB** from the Start menu. In Lighting, pick a color and press **Apply to all devices**; connection, output, and saving happen together. **Find / refresh devices** discovers controllers without enabling output. Configure passive fans/strips in Devices once. Commission each fan mapping in Cooling before enabling a cooling policy.
+
+RAM lighting, many motherboard lighting chips, and CPU temperatures need the signed [PawnIO](https://pawnio.eu) driver. The Setup EXE installs it automatically (it is skipped if you already have it). If it is ever missing, the Devices page has a one-click **Install PawnIO** button; restart afterwards and press **Find devices**.
 
 The portable ZIP runs monitoring and editing without installation. Privileged motherboard access and persistent cooling need the installed service. Unsupported or blocked sensors are shown as unavailable. MK RGB does not change Windows driver-security settings.
 

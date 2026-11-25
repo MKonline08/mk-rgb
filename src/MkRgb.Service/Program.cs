@@ -24,7 +24,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
     HardwareSnapshot snapshot = new([], [], [], [], DateTimeOffset.UtcNow);
     List<FanPolicy> policies = []; Dictionary<string, CalibrationResult> calibrated = [];
     readonly OpenRgbBackend rgb = new(Path.Combine(AppContext.BaseDirectory, "OpenRGB", "OpenRGB.exe"), Path.Combine(Paths.MachineData, "OpenRGB"));
-    string? calibrationChannel; string? lastFault;
+    string? calibrationChannel; string? configurationFault; string? coolingFault;
     string PoliciesPath => Path.Combine(Paths.MachineData, "cooling.json");
     protected override async Task ExecuteAsync(CancellationToken token)
     {
@@ -41,13 +41,13 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             if (File.Exists(PoliciesPath + ".calibration"))
                 calibrated = Json.Read<Dictionary<string, CalibrationResult>>(File.ReadAllText(PoliciesPath + ".calibration"));
         }
-        catch (Exception e) { lastFault = "Saved cooling configuration rejected: " + e.Message; policies = []; }
+        catch (Exception e) { configurationFault = "Saved cooling configuration rejected: " + e.Message; policies = []; }
         snapshot = sensors.Read();
         try
         {
             Apply(policies);
         }
-        catch (Exception e) { policies = []; lastFault = "Saved cooling configuration rejected: " + e.Message; }
+        catch (Exception e) { policies = []; configurationFault = "Saved cooling configuration rejected: " + e.Message; }
         var listener = Listen(token);
         try
         {
@@ -57,6 +57,8 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
                 try
                 {
                     snapshot = sensors.Read();
+                    // Cooling faults describe the current pass only, so a recovered channel clears its warning.
+                    coolingFault = null;
                     foreach (var policy in policies.Where(p => p.Enabled && p.ChannelId != calibrationChannel))
                     {
                         if (!calibrated.ContainsKey(policy.ChannelId))
@@ -70,10 +72,12 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
                                 duty = 100;
                             sensors.SetDuty(policy.ChannelId, duty);
                         }
-                        catch (Exception e) { lastFault = "Cooling: " + e.Message; try { sensors.SetDuty(policy.ChannelId, 100); } catch { sensors.Restore(policy.ChannelId); } }
+                        catch (Exception e) { coolingFault = "Cooling: " + e.Message; try { sensors.SetDuty(policy.ChannelId, 100); } catch { sensors.Restore(policy.ChannelId); } }
                     }
-                    if (lastFault != null)
-                        snapshot.Warnings.Add(lastFault);
+                    if (configurationFault != null)
+                        snapshot.Warnings.Add(configurationFault);
+                    if (coolingFault != null)
+                        snapshot.Warnings.Add(coolingFault);
                 }
                 finally { gate.Release(); }
                 await Task.Delay(1000, token);
@@ -99,7 +103,10 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
         {
             var acl = new PipeSecurity();
             acl.SetAccessRuleProtection(true, false);
-            foreach (var sid in new[] { owner.Sid, "S-1-5-18", "S-1-5-32-544" })
+            // INTERACTIVE (S-1-5-4) covers every locally signed-in user. Without it, an MSI deployed by
+            // management tools records SYSTEM as the owner and no desktop user could reach the service.
+            // Every request is still validated by the service's own safety rules.
+            foreach (var sid in new[] { owner.Sid, "S-1-5-4", "S-1-5-18", "S-1-5-32-544" }.Distinct())
                 acl.AddAccessRule(new PipeAccessRule(new SecurityIdentifier(sid), sid == "S-1-5-18" ? PipeAccessRights.FullControl : PipeAccessRights.ReadWrite, AccessControlType.Allow));
             var pipe = NamedPipeServerStreamAcl.Create(PipeClient.Name, PipeDirection.InOut, 16, PipeTransmissionMode.Byte, PipeOptions.Asynchronous, 0, 0, acl);
             try
@@ -128,8 +135,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             object result;
             if (request.Method == "startRgb")
             {
-                await rgb.StartAsync(token);
-                result = true;
+                result = await rgb.StartAsync(token);
             }
             else if (request.Method == "calibrate")
                 result = await Calibrate(Json.Read<CalibrationRequest>(request.Payload), token);
@@ -192,6 +198,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             sensors.Restore(p.ChannelId);
         SettingsStore.AtomicWrite(PoliciesPath, Json.Write(incoming));
         policies = incoming;
+        configurationFault = null;
         return true;
     }
     bool Restore()
@@ -200,6 +207,7 @@ sealed class HardwareService(Owner owner, ILogger<HardwareService> log) : Backgr
             throw new InvalidOperationException("Wait for commissioning to finish before restoring control.");
         SettingsStore.AtomicWrite(PoliciesPath, "[]");
         policies = [];
+        configurationFault = null;
         sensors.RestoreAll();
         return true;
     }

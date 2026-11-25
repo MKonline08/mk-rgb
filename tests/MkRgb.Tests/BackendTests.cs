@@ -55,12 +55,15 @@ public class BackendTests
         await Assert.ThrowsAsync<IOException>(() => client.WriteAsync("removed", [], CancellationToken.None));
     }
     [Fact]
-    public async Task DuplicateControllerIdentityRejectsDiscovery()
+    public async Task IdenticalControllersAreBothDiscoveredWithDistinctIds()
     {
         await using var server = new FixtureServer(duplicate: true);
         await using var client = new OpenRgb(server.Port);
-        await Assert.ThrowsAsync<InvalidDataException>(() => client.DiscoverAsync(CancellationToken.None));
-        Assert.True(client.NeedsDiscovery);
+        var devices = await client.DiscoverAsync(CancellationToken.None);
+        Assert.Equal(2, devices.Count);
+        Assert.Equal(2, devices.Select(d => d.Id).Distinct().Count());
+        Assert.False(client.NeedsDiscovery);
+        await client.WriteAsync(devices[1].Id, [], CancellationToken.None);
     }
     static async Task WaitUntil(Func<bool> condition)
     {

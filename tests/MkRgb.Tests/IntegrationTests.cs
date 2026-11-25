@@ -33,7 +33,7 @@ public class IntegrationTests
         Assert.NotEmpty(items);
         foreach (var item in items)
         {
-            var bytes = File.ReadAllBytes(Path.Combine(directory, item.File));
+            var bytes = File.ReadAllBytes(Path.Combine(directory, item.File.Replace('/', Path.DirectorySeparatorChar)));
             Assert.Equal(item.Sha256.ToUpperInvariant(), Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)));
             SettingsStore.ValidateProfile(SettingsStore.Import(System.Text.Encoding.UTF8.GetString(bytes)));
         }

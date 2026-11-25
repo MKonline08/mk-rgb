@@ -5,7 +5,7 @@ on:
     tags: ['v*']
   pull_request:
 concurrency:
-  group: build-${{ github.sha }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read

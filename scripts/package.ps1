@@ -27,6 +27,14 @@ if ((Get-FileHash $backend -Algorithm SHA256).Hash -ne '63291726C6FC84EB479EF2EE
 Expand-Archive -LiteralPath $backend -DestinationPath "$repo\vendor\OpenRGB" -Force
 New-Item -ItemType Directory -Force "$stage\service\OpenRGB" | Out-Null
 Get-ChildItem -LiteralPath "$repo\vendor\OpenRGB\OpenRGB Windows 64-bit" | Copy-Item -Destination "$stage\service\OpenRGB" -Recurse -Force
+# PawnIO: the signed driver needed for RAM/motherboard RGB and CPU sensors. The Setup EXE installs it silently;
+# a copy also ships in drivers\ so the app can offer a one-click install for portable or repaired setups.
+$pawnIoVersion = '2.2.0'
+$pawnIo = Join-Path $repo "vendor\PawnIO_setup-$pawnIoVersion.exe"
+if (-not (Test-Path $pawnIo)) { Invoke-WebRequest "https://github.com/namazso/PawnIO.Setup/releases/download/$pawnIoVersion/PawnIO_setup.exe" -OutFile $pawnIo }
+if ((Get-FileHash $pawnIo -Algorithm SHA256).Hash -ne '1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032') { throw 'PawnIO installer checksum mismatch' }
+New-Item -ItemType Directory -Force "$stage\drivers" | Out-Null
+Copy-Item -LiteralPath $pawnIo -Destination "$stage\drivers\PawnIO_setup.exe" -Force
 
 
 Copy-Item -LiteralPath "$repo\LICENSE","$repo\THIRD-PARTY-NOTICES.md" -Destination $stage -Force
@@ -34,7 +42,8 @@ Copy-Item -LiteralPath "$repo\licenses" -Destination $stage -Recurse -Force
 Copy-Item -LiteralPath "$repo\docs" -Destination $stage -Recurse -Force
 
 # Deterministic component identities are based on relative paths; WiX generates stable GUIDs.
-function Id([string]$value) { 'C' + [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($value))).Substring(0,24) }
+# Works in Windows PowerShell 5.1 and PowerShell 7 (same uppercase hex as Convert.ToHexString).
+function Id([string]$value) { $sha = [Security.Cryptography.SHA256]::Create(); try { 'C' + ([BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($value))) -replace '-', '').Substring(0,24) } finally { $sha.Dispose() } }
 function Xml([string]$value) { [Security.SecurityElement]::Escape($value) }
 $components = [Collections.Generic.List[string]]::new()
 function DirectoryXml([string]$folder,[string]$relative) {
@@ -75,12 +84,12 @@ $wxs = Join-Path $repo 'artifacts\MkRgb.wxs'
 [IO.File]::WriteAllText($wxs,$source)
 Checked $Wix @('build','-ext','WixToolset.Util.wixext','-arch','x64',$wxs,'-out',"$out\MK-RGB-$Version-win-x64.msi",'-pdbtype','none')
 Compress-Archive -Path "$stage\*" -DestinationPath "$out\MK-RGB-$Version-win-x64-portable.zip" -Force
-& (Join-Path $PSScriptRoot 'bundle.ps1') -Msi "$out\MK-RGB-$Version-win-x64.msi" -Wix $Wix -Version $Version
+& (Join-Path $PSScriptRoot 'bundle.ps1') -Msi "$out\MK-RGB-$Version-win-x64.msi" -PawnIO $pawnIo -PawnIOVersion "$pawnIoVersion.0" -Wix $Wix -Version $Version
 foreach ($source in (Get-Content (Join-Path $PSScriptRoot 'sources.json') -Raw | ConvertFrom-Json)) {
     $archive = Join-Path $repo ('vendor\' + $source.File)
     if (-not (Test-Path -LiteralPath $archive)) { Invoke-WebRequest $source.Url -OutFile $archive }
     if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne $source.Sha256) { throw "Source checksum mismatch: $($source.File)" }
     Copy-Item -LiteralPath $archive -Destination $out -Force
 }
-Get-ChildItem $out -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | Set-Content "$out\SHA256SUMS.txt" -Encoding utf8NoBOM
+Get-ChildItem $out -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object { "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } | ForEach-Object -Begin { $sums = @() } -Process { $sums += $_ } -End { [IO.File]::WriteAllLines("$out\SHA256SUMS.txt", [string[]]$sums, [Text.UTF8Encoding]::new($false)) }
 Write-Output "Release artifacts: $out"
